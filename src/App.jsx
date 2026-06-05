@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { Analytics } from '@vercel/analytics/react';
 
 const EQUIPMENT_OPTIONS = [
   { id: 'bodyweight', label: 'BODYWEIGHT' },
@@ -1671,6 +1672,7 @@ export default function DailyHundred() {
             </>
           )}
         </div>
+        <Analytics />
       </div>
     );
   }
