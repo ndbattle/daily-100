@@ -832,7 +832,7 @@ export default function DailyHundred() {
           <div style={styles.divider} />
 
           <div style={styles.homeIntro}>
-            <h1 style={styles.homeTitle}>SET TODAY'S<br />MOVEMENT.</h1>
+            <h1 style={styles.homeTitle}>GET READY<br />TO SWEAT</h1>
           </div>
 
           {/* Target picker */}
@@ -1900,4 +1900,3 @@ const styles = {
   loadingWrap: { minHeight: '100vh', background: '#faf6f0', display: 'flex', alignItems: 'center', justifyContent: 'center' },
   loadingDot: { width: 16, height: 16, background: '#e8442f', borderRadius: '50%', animation: 'pulse 1.2s ease-in-out infinite' },
 };
-
