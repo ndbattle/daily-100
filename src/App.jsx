@@ -1900,3 +1900,4 @@ const styles = {
   loadingWrap: { minHeight: '100vh', background: '#faf6f0', display: 'flex', alignItems: 'center', justifyContent: 'center' },
   loadingDot: { width: 16, height: 16, background: '#e8442f', borderRadius: '50%', animation: 'pulse 1.2s ease-in-out infinite' },
 };
+
