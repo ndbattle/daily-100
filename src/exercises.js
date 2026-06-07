@@ -35,7 +35,7 @@ export const BUILTIN_EXERCISES = [
   { name: 'SIT-UPS', tip: 'Hands behind ears, lead with chest, not neck.', equipment: ['bodyweight'] },
   { name: 'CRUNCHES', tip: 'Lift shoulder blades. Lower back stays planted.', equipment: ['bodyweight'] },
   { name: 'ALTERNATING LUNGES', tip: 'Count each leg. Back knee toward floor.', equipment: ['bodyweight'] },
-  { name: 'MOUNTAIN CLIMBERS', tip: 'Hips low. Drive knees, don\'t bounce.', equipment: ['bodyweight'] },
+  { name: 'MOUNTAIN CLIMBERS', tip: 'Plank position. Drive knees towards elbows and show some speed.', equipment: ['bodyweight'] },
   { name: 'HIGH KNEES', tip: 'Knees to hip height. Quick, light steps.', equipment: ['bodyweight'] },
   { name: 'GLUTE BRIDGES', tip: 'Squeeze at the top. Pause for 1 second.', equipment: ['bodyweight'] },
   { name: 'CALF RAISES', tip: 'Pause at the top. Full stretch at bottom.', equipment: ['bodyweight'] },
