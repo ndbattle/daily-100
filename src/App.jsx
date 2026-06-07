@@ -48,7 +48,6 @@ const BUILTIN_EXERCISES = [
   { name: 'DUMBBELL FLOOR PRESS', tip: 'Elbows touch floor, then drive up.', equipment: ['dumbbell'] },
   { name: 'DUMBBELL DEADLIFTS', tip: 'Hinge at hips. Back stays flat.', equipment: ['dumbbell'] },
   { name: 'RENEGADE ROWS', tip: 'Plank position. Each side = 1 rep.', equipment: ['dumbbell'] },
-  { name: 'ZOTTMAN CURLS', tip: 'Curl up. Twist hands at top snd bring palms to down', equipment: ['dumbbell'] },
   { name: 'DUMBBELL PULLOVERS', tip: 'Lying down. Stretch overhead, pull to chest.', equipment: ['dumbbell'] },
 
   // ---- Kettlebell ----
@@ -597,6 +596,20 @@ export default function DailyHundred() {
   }
 
   function reset() { setState({ ...state, reps: 0, setsDone: [] }); }
+
+  function undoCompletion() {
+    if (!window.confirm("Undo today's completion?\n\nYour streak will decrease by 1. Best streak and medals will stay.")) return;
+    // Find the most recent completed entry that isn't today
+    const previousEntry = state.history.find((h) => h.date !== TODAY() && h.completed);
+    setState({
+      ...state,
+      reps: 0,
+      setsDone: [],
+      streak: Math.max(0, state.streak - 1),
+      lastCompletedDate: previousEntry ? previousEntry.date : null,
+      history: state.history.filter((h) => h.date !== TODAY()),
+    });
+  }
   function pickScheme(id) {
     setState({ ...state, schemeId: id, reps: 0, setsDone: [] });
     setShowSchemes(false);
@@ -1193,7 +1206,7 @@ export default function DailyHundred() {
             <div style={styles.doneBlock}>
               <div style={styles.doneText}>DONE.</div>
               <div style={styles.doneSub}>See you tomorrow.</div>
-              <button style={styles.ghostBtn} onClick={reset}>RESET TODAY</button>
+              <button style={styles.ghostBtn} onClick={undoCompletion}>RESET TODAY</button>
             </div>
           ) : !state.workoutStarted ? (
             <>
