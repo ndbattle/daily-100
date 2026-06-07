@@ -1317,8 +1317,9 @@ export default function DailyHundred() {
 
       {justFinished && (
         <>
-          <Fireworks />
+          <div style={styles.flashBg} />
           <LightningBolts />
+          <Fireworks />
           <div style={styles.flash}>
             <div style={styles.flashInner}>
               <div style={styles.flashDidIt}>YOU DID IT!</div>
@@ -2042,6 +2043,12 @@ html { background: var(--bg-solid); }
   40% { opacity: 1; transform: scale(1.2) rotate(2deg); }
   70% { transform: scale(1) rotate(0); }
   100% { opacity: 1; transform: scale(1) rotate(0); }
+}
+@keyframes flashBgIn {
+  0% { opacity: 0; }
+  10% { opacity: 1; }
+  85% { opacity: 1; }
+  100% { opacity: 0; }
 }
 button { transition: transform 0.08s ease, box-shadow 0.15s ease, background 0.15s ease, opacity 0.15s ease, color 0.15s ease; }
 button:active { transform: scale(0.98); }
