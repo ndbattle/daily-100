@@ -1,32 +1,3 @@
-// ============================================================
-// EXERCISE LIBRARY
-// ============================================================
-// Add, edit, or remove exercises here. Save and commit — the app
-// picks up changes automatically on next deploy.
-//
-// Format for each exercise:
-//   { name: 'EXERCISE NAME', tip: 'Form note shown to user.', equipment: ['bodyweight'] },
-//
-// FIELDS:
-//   - name      : All caps, in single quotes
-//   - tip       : Short form note (keep under ~60 characters)
-//   - equipment : Array of one or more of:
-//                 'bodyweight', 'dumbbell', 'kettlebell', 'band'
-//
-// OPTIONAL FIELD:
-//   - videoUrl  : Link to a tutorial video. If omitted, the app
-//                 falls back to a YouTube search for the name.
-//                 Example:
-//                 { name: 'BURPEES', tip: '...', equipment: ['bodyweight'],
-//                   videoUrl: 'https://youtube.com/watch?v=...' },
-//
-// RULES:
-//   - Each line ends with a comma
-//   - Names must be unique across the whole list
-//   - Don't delete the [ at the top or the ]; at the bottom
-//   - Use single quotes ' not double quotes "
-// ============================================================
-
 export const BUILTIN_EXERCISES = [
   // ---- Bodyweight ----
   { name: 'PUSH-UPS', tip: 'Keep core tight. Drop to knees if form breaks.', equipment: ['bodyweight'] },
