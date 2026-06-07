@@ -176,6 +176,7 @@ const DEFAULT_STATE = {
   customExercises: [],
   disabledBuiltins: [],
   adminMode: false,
+  theme: 'auto', // 'light' | 'dark' | 'auto'
 };
 
 function Fireworks() {
@@ -486,6 +487,39 @@ export default function DailyHundred() {
       // localStorage might be full or disabled — fail silently
     }
   }, [state]);
+
+  // Apply theme to document root so CSS variables cascade everywhere
+  useEffect(() => {
+    if (typeof document === 'undefined') return;
+    const pref = state?.theme || 'auto';
+    const apply = () => {
+      let resolved = pref;
+      if (pref === 'auto') {
+        const prefersDark = typeof window !== 'undefined' &&
+          window.matchMedia &&
+          window.matchMedia('(prefers-color-scheme: dark)').matches;
+        resolved = prefersDark ? 'dark' : 'light';
+      }
+      document.documentElement.setAttribute('data-theme', resolved);
+    };
+    apply();
+
+    // Listen to system theme changes when in auto mode
+    if (pref === 'auto' && typeof window !== 'undefined' && window.matchMedia) {
+      const mq = window.matchMedia('(prefers-color-scheme: dark)');
+      const handler = () => apply();
+      if (mq.addEventListener) mq.addEventListener('change', handler);
+      else if (mq.addListener) mq.addListener(handler);
+      return () => {
+        if (mq.removeEventListener) mq.removeEventListener('change', handler);
+        else if (mq.removeListener) mq.removeListener(handler);
+      };
+    }
+  }, [state?.theme]);
+
+  function setTheme(t) {
+    setState({ ...state, theme: t });
+  }
 
   const schemes = useMemo(
     () => SCHEMES_BY_TARGET[state?.target] || SCHEMES_BY_TARGET[100],
@@ -964,10 +998,10 @@ export default function DailyHundred() {
               style={{
                 ...styles.targetBtn,
                 ...styles.primaryTargetBtn,
-                background: pendingTarget === 100 ? '#1a1a1a' : '#fff',
-                color: pendingTarget === 100 ? '#faf6f0' : '#1a1a1a',
-                boxShadow: pendingTarget === 100 ? '0 6px 18px rgba(26,26,26,0.25)' : '0 1px 3px rgba(0,0,0,0.06)',
-                border: pendingTarget === 100 ? '1.5px solid #1a1a1a' : '1.5px solid #e0d6c8',
+                background: pendingTarget === 100 ? 'var(--text)' : 'var(--surface)',
+                color: pendingTarget === 100 ? 'var(--bg-solid)' : 'var(--text)',
+                boxShadow: pendingTarget === 100 ? '0 6px 18px var(--shadow-charcoal)' : '0 1px 3px var(--shadow-sm)',
+                border: pendingTarget === 100 ? '1.5px solid var(--text)' : '1.5px solid var(--border)',
               }}
               onClick={() => setPendingTarget(100)}
             >
@@ -984,10 +1018,10 @@ export default function DailyHundred() {
                     key={t}
                     style={{
                       ...styles.targetBtn,
-                      background: active ? '#1a1a1a' : '#fff',
-                      color: active ? '#faf6f0' : '#1a1a1a',
-                      boxShadow: active ? '0 6px 18px rgba(26,26,26,0.25)' : '0 1px 3px rgba(0,0,0,0.06)',
-                      border: active ? '1.5px solid #1a1a1a' : '1.5px solid #e0d6c8',
+                      background: active ? 'var(--text)' : 'var(--surface)',
+                      color: active ? 'var(--bg-solid)' : 'var(--text)',
+                      boxShadow: active ? '0 6px 18px var(--shadow-charcoal)' : '0 1px 3px var(--shadow-sm)',
+                      border: active ? '1.5px solid var(--text)' : '1.5px solid var(--border)',
                     }}
                     onClick={() => setPendingTarget(t)}
                   >
@@ -1010,18 +1044,18 @@ export default function DailyHundred() {
                     key={eq.id}
                     style={{
                       ...styles.equipBtn,
-                      background: active ? '#1a1a1a' : '#fff',
-                      color: active ? '#faf6f0' : '#1a1a1a',
-                      borderColor: active ? '#1a1a1a' : '#e0d6c8',
-                      boxShadow: active ? '0 4px 14px rgba(26,26,26,0.2)' : '0 1px 3px rgba(0,0,0,0.06)',
+                      background: active ? 'var(--text)' : 'var(--surface)',
+                      color: active ? 'var(--bg-solid)' : 'var(--text)',
+                      borderColor: active ? 'var(--text)' : 'var(--border)',
+                      boxShadow: active ? '0 4px 14px var(--shadow-charcoal)' : '0 1px 3px var(--shadow-sm)',
                     }}
                     onClick={() => togglePendingEquipment(eq.id)}
                   >
                     <span style={styles.equipLabel}>{eq.label}</span>
                     <span style={{
                       ...styles.equipCheck,
-                      background: active ? '#e8442f' : 'transparent',
-                      borderColor: active ? '#e8442f' : '#d0c6b8',
+                      background: active ? 'var(--accent)' : 'transparent',
+                      borderColor: active ? 'var(--accent)' : 'var(--border-input)',
                     }}>{active ? '✓' : ''}</span>
                   </button>
                 );
@@ -1131,9 +1165,9 @@ export default function DailyHundred() {
                     key={s.id}
                     style={{
                       ...styles.schemeChip,
-                      background: active ? '#1a1a1a' : '#fff',
-                      color: active ? '#faf6f0' : '#1a1a1a',
-                      borderColor: active ? '#1a1a1a' : '#e0d6c8',
+                      background: active ? 'var(--text)' : 'var(--surface)',
+                      color: active ? 'var(--bg-solid)' : 'var(--text)',
+                      borderColor: active ? 'var(--text)' : 'var(--border)',
                       opacity: disabled ? 0.35 : 1,
                       cursor: disabled ? 'not-allowed' : 'pointer',
                     }}
@@ -1157,7 +1191,7 @@ export default function DailyHundred() {
                 REPS {scheme.sets && `· ${setsCompletedCount}/${scheme.sets.length} SETS`}
               </div>
               <div style={styles.repsValue}>
-                <span style={{ color: done ? '#e8442f' : '#1a1a1a' }}>{totalReps}</span>
+                <span style={{ color: done ? 'var(--accent)' : 'var(--text)' }}>{totalReps}</span>
                 <span style={styles.repsTarget}>/{target}</span>
               </div>
             </div>
@@ -1165,7 +1199,7 @@ export default function DailyHundred() {
           </div>
 
           <div style={styles.progressTrack}>
-            <div style={{ ...styles.progressFill, width: `${pct}%`, background: done ? 'linear-gradient(90deg, #f25138, #e8442f)' : '#1a1a1a' }} />
+            <div style={{ ...styles.progressFill, width: `${pct}%`, background: done ? 'var(--accent-gradient)' : 'var(--text)' }} />
           </div>
 
           {done ? (
@@ -1215,10 +1249,10 @@ export default function DailyHundred() {
                       onClick={() => toggleSet(i)}
                       style={{
                         ...styles.setTile,
-                        background: completed ? 'linear-gradient(135deg, #f25138 0%, #e8442f 100%)' : nextToDo ? '#fff' : '#f7f2ea',
-                        color: completed ? '#fff' : nextToDo ? '#1a1a1a' : '#b5aca2',
-                        borderColor: completed ? 'transparent' : nextToDo ? '#1a1a1a' : '#e0d6c8',
-                        boxShadow: completed ? '0 3px 10px rgba(232,68,47,0.3)' : nextToDo ? '0 2px 8px rgba(0,0,0,0.08)' : 'none',
+                        background: completed ? 'var(--accent-gradient)' : nextToDo ? 'var(--surface)' : 'var(--surface-muted)',
+                        color: completed ? 'var(--surface)' : nextToDo ? 'var(--text)' : 'var(--dark-card-muted)',
+                        borderColor: completed ? 'transparent' : nextToDo ? 'var(--text)' : 'var(--border)',
+                        boxShadow: completed ? '0 3px 10px var(--accent-shadow-md)' : nextToDo ? '0 2px 8px var(--shadow-md)' : 'none',
                       }}
                     >
                       <div style={{ ...styles.setTileNum, fontSize: numFontSize }}>{reps}</div>
@@ -1364,17 +1398,17 @@ export default function DailyHundred() {
                           key={m.id}
                           style={{
                             ...styles.medal,
-                            background: m.earned ? 'linear-gradient(135deg, #f25138 0%, #e8442f 100%)' : '#fff',
-                            color: m.earned ? '#fff' : '#1a1a1a',
-                            borderColor: m.earned ? 'transparent' : '#e0d6c8',
-                            boxShadow: m.earned ? '0 3px 12px rgba(232,68,47,0.25)' : 'none',
+                            background: m.earned ? 'var(--accent-gradient)' : 'var(--surface)',
+                            color: m.earned ? 'var(--surface)' : 'var(--text)',
+                            borderColor: m.earned ? 'transparent' : 'var(--border)',
+                            boxShadow: m.earned ? '0 3px 12px var(--accent-shadow-sm)' : 'none',
                             opacity: m.earned ? 1 : 0.65,
                           }}
                         >
                           <div style={{
                             ...styles.medalIcon,
-                            background: m.earned ? 'rgba(255,255,255,0.22)' : '#f2ebe0',
-                            color: m.earned ? '#fff' : '#c0b6a8',
+                            background: m.earned ? 'rgba(255,255,255,0.22)' : 'var(--medal-icon-bg)',
+                            color: m.earned ? 'var(--surface)' : 'var(--text-subtle)',
                           }}>
                             {m.earned ? '★' : '☆'}
                           </div>
@@ -1382,7 +1416,7 @@ export default function DailyHundred() {
                             <div style={styles.medalLabel}>{m.label}</div>
                             <div style={{
                               ...styles.medalSub,
-                              color: m.earned ? 'rgba(255,255,255,0.85)' : '#8a8178',
+                              color: m.earned ? 'rgba(255,255,255,0.85)' : 'var(--text-muted)',
                             }}>
                               {m.earned
                                 ? m.sub
@@ -1419,6 +1453,33 @@ export default function DailyHundred() {
                     <div style={styles.historyReps}>{h.reps}</div>
                   </div>
                 ))}
+              </div>
+
+              <div style={styles.sectionHeader}>
+                <span>APPEARANCE</span>
+              </div>
+              <div style={styles.themeRow}>
+                {[
+                  { id: 'light', label: 'LIGHT' },
+                  { id: 'dark', label: 'DARK' },
+                  { id: 'auto', label: 'AUTO' },
+                ].map((opt) => {
+                  const active = (state.theme || 'auto') === opt.id;
+                  return (
+                    <button
+                      key={opt.id}
+                      onClick={() => setTheme(opt.id)}
+                      style={{
+                        ...styles.themeBtn,
+                        background: active ? 'var(--text)' : 'var(--surface)',
+                        color: active ? 'var(--bg-solid)' : 'var(--text)',
+                        borderColor: active ? 'var(--text)' : 'var(--border)',
+                      }}
+                    >
+                      {opt.label}
+                    </button>
+                  );
+                })}
               </div>
 
               <div style={styles.accountBlock}>
@@ -1465,9 +1526,9 @@ export default function DailyHundred() {
                         key={v}
                         style={{
                           ...styles.subtab,
-                          background: active ? '#1a1a1a' : '#fff',
-                          color: active ? '#faf6f0' : '#1a1a1a',
-                          borderColor: active ? '#1a1a1a' : '#e0d6c8',
+                          background: active ? 'var(--text)' : 'var(--surface)',
+                          color: active ? 'var(--bg-solid)' : 'var(--text)',
+                          borderColor: active ? 'var(--text)' : 'var(--border)',
                         }}
                         onClick={() => setFriendsView(v)}
                       >
@@ -1490,7 +1551,7 @@ export default function DailyHundred() {
                         {leaderboard.map((p, i) => (
                           <div key={p.id} style={{
                             ...styles.leaderRow,
-                            background: p.isMe ? '#fff' : 'transparent',
+                            background: p.isMe ? 'var(--surface)' : 'transparent',
                           }}>
                             <div style={styles.leaderRank}>{i + 1}</div>
                             <div style={styles.leaderBody}>
@@ -1571,7 +1632,7 @@ export default function DailyHundred() {
                       placeholder="Search by name or @handle"
                       value={findQuery}
                       onChange={(e) => setFindQuery(e.target.value)}
-                      style={{ ...styles.authInput, marginBottom: 16, background: '#fff' }}
+                      style={{ ...styles.authInput, marginBottom: 16, background: 'var(--surface)' }}
                     />
                     <div style={styles.movesHeader}>SUGGESTED FOR YOU</div>
                     {filteredSuggestions.length === 0 ? (
@@ -1631,9 +1692,9 @@ export default function DailyHundred() {
                                 key={f.id}
                                 style={{
                                   ...styles.memberPickRow,
-                                  background: picked ? '#1a1a1a' : '#fff',
-                                  color: picked ? '#faf6f0' : '#1a1a1a',
-                                  borderColor: picked ? '#1a1a1a' : '#e0d6c8',
+                                  background: picked ? 'var(--text)' : 'var(--surface)',
+                                  color: picked ? 'var(--bg-solid)' : 'var(--text)',
+                                  borderColor: picked ? 'var(--text)' : 'var(--border)',
                                 }}
                                 onClick={() =>
                                   setNewSquadMembers((cur) =>
@@ -1738,9 +1799,9 @@ export default function DailyHundred() {
                           key={eq.id}
                           style={{
                             ...styles.formEquipChip,
-                            background: active ? '#1a1a1a' : '#faf6f0',
-                            color: active ? '#faf6f0' : '#1a1a1a',
-                            borderColor: active ? '#1a1a1a' : '#e0d6c8',
+                            background: active ? 'var(--text)' : 'var(--bg-solid)',
+                            color: active ? 'var(--bg-solid)' : 'var(--text)',
+                            borderColor: active ? 'var(--text)' : 'var(--border)',
                           }}
                           onClick={() => toggleNewEquipment(eq.id)}
                         >
@@ -1820,9 +1881,9 @@ export default function DailyHundred() {
                       onClick={() => toggleBuiltin(ex.name)}
                       style={{
                         ...styles.toggleBtn,
-                        background: isOff ? '#fff' : '#1a1a1a',
-                        color: isOff ? '#8a8178' : '#fff',
-                        borderColor: isOff ? '#e0d6c8' : '#1a1a1a',
+                        background: isOff ? 'var(--surface)' : 'var(--text)',
+                        color: isOff ? 'var(--text-muted)' : 'var(--surface)',
+                        borderColor: isOff ? 'var(--border)' : 'var(--text)',
                       }}
                     >{isOff ? 'OFF' : 'ON'}</button>
                   </div>
@@ -1848,6 +1909,90 @@ export default function DailyHundred() {
 
 const cssText = `
 @import url('https://fonts.googleapis.com/css2?family=Archivo+Black&family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@400;500;600;700&display=swap');
+
+:root {
+  --bg: linear-gradient(180deg, #faf6f0 0%, #f4ede4 100%);
+  --bg-solid: #faf6f0;
+  --text: #1a1a1a;
+  --text-muted: #8a8178;
+  --text-subtle: #c0b6a8;
+  --text-faint: #b5aca2;
+  --surface: #ffffff;
+  --surface-muted: #f7f2ea;
+  --surface-input: #faf6f0;
+  --border: #e0d6c8;
+  --border-soft: #e8e0d4;
+  --border-input: #d0c6b8;
+  --divider: #e0d6c8;
+  --accent: #e8442f;
+  --accent-light: #f25138;
+  --accent-hilite: #ff6b54;
+  --accent-gradient: linear-gradient(135deg, #f25138 0%, #e8442f 100%);
+  --accent-shadow-sm: rgba(232,68,47,0.25);
+  --accent-shadow-md: rgba(232,68,47,0.30);
+  --accent-shadow-lg: rgba(232,68,47,0.35);
+  --gold: #ffd700;
+  --dark-card-bg: linear-gradient(160deg, #2a2a2a 0%, #161616 100%);
+  --dark-card-text: #faf6f0;
+  --dark-card-muted: #b5aca2;
+  --dark-card-border: rgba(255,255,255,0.12);
+  --dark-card-accent: #ff6b54;
+  --shadow-xs: rgba(0,0,0,0.05);
+  --shadow-sm: rgba(0,0,0,0.06);
+  --shadow-md: rgba(0,0,0,0.08);
+  --shadow-lg: rgba(0,0,0,0.18);
+  --shadow-charcoal: rgba(26,26,26,0.25);
+  --overlay: rgba(20,16,12,0.55);
+  --countdown-overlay: rgba(15,12,10,0.85);
+  --progress-track: #efe7da;
+  --medal-icon-bg: #f2ebe0;
+  --target-faint: #cfc6ba;
+  --equip-check-empty: #d0c6b8;
+  --scrollbar: rgba(0,0,0,0.15);
+}
+
+html[data-theme="dark"] {
+  --bg: linear-gradient(180deg, #1a1410 0%, #14100c 100%);
+  --bg-solid: #14100c;
+  --text: #f5ede0;
+  --text-muted: #8b8278;
+  --text-subtle: #5a5048;
+  --text-faint: #6a6058;
+  --surface: #221b15;
+  --surface-muted: #1a1410;
+  --surface-input: #1a1410;
+  --border: #332a23;
+  --border-soft: #2a221d;
+  --border-input: #3d342c;
+  --divider: #2a221d;
+  --accent: #e8442f;
+  --accent-light: #f25138;
+  --accent-hilite: #ff8a6f;
+  --accent-gradient: linear-gradient(135deg, #f25138 0%, #e8442f 100%);
+  --accent-shadow-sm: rgba(232,68,47,0.35);
+  --accent-shadow-md: rgba(232,68,47,0.40);
+  --accent-shadow-lg: rgba(232,68,47,0.45);
+  --gold: #ffd700;
+  --dark-card-bg: linear-gradient(160deg, #2f261e 0%, #1a1410 100%);
+  --dark-card-text: #f5ede0;
+  --dark-card-muted: #a89e92;
+  --dark-card-border: rgba(255,255,255,0.08);
+  --dark-card-accent: #ff8a6f;
+  --shadow-xs: rgba(0,0,0,0.25);
+  --shadow-sm: rgba(0,0,0,0.30);
+  --shadow-md: rgba(0,0,0,0.40);
+  --shadow-lg: rgba(0,0,0,0.60);
+  --shadow-charcoal: rgba(0,0,0,0.50);
+  --overlay: rgba(0,0,0,0.70);
+  --countdown-overlay: rgba(0,0,0,0.92);
+  --progress-track: #2a221d;
+  --medal-icon-bg: #2a221d;
+  --target-faint: #4a4338;
+  --equip-check-empty: #3d342c;
+  --scrollbar: rgba(255,255,255,0.15);
+}
+
+html { background: var(--bg-solid); }
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 @keyframes flashIn {
   0% { opacity: 0; transform: scale(0.85); }
@@ -1898,220 +2043,222 @@ const cssText = `
   70% { transform: scale(1) rotate(0); }
   100% { opacity: 1; transform: scale(1) rotate(0); }
 }
-button { transition: transform 0.08s ease, box-shadow 0.15s ease, background 0.15s ease, opacity 0.15s ease; }
+button { transition: transform 0.08s ease, box-shadow 0.15s ease, background 0.15s ease, opacity 0.15s ease, color 0.15s ease; }
 button:active { transform: scale(0.98); }
 button:disabled { cursor: not-allowed; }
-input { font-family: inherit; transition: border-color 0.15s ease, box-shadow 0.15s ease; }
-input:focus { outline: none; border-color: #e8442f; box-shadow: 0 0 0 3px rgba(232,68,47,0.12); }
+input { font-family: inherit; transition: border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease, color 0.15s ease; }
+input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(232,68,47,0.15); }
 ::-webkit-scrollbar { width: 8px; height: 8px; }
-::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.15); border-radius: 4px; }
+::-webkit-scrollbar-thumb { background: var(--scrollbar); border-radius: 4px; }
 `;
 
 const styles = {
   shell: {
     minHeight: '100vh',
-    background: 'linear-gradient(180deg, #faf6f0 0%, #f4ede4 100%)',
-    fontFamily: "'Inter', system-ui, sans-serif", color: '#1a1a1a',
+    background: 'var(--bg)',
+    fontFamily: "'Inter', system-ui, sans-serif", color: 'var(--text)',
     padding: '24px 18px 48px',
   },
   frame: { maxWidth: 480, margin: '0 auto' },
   headerRow: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 18 },
-  kicker: { fontFamily: "'JetBrains Mono', monospace", fontSize: 10, letterSpacing: 1.8, color: '#8a8178', marginBottom: 14, fontWeight: 700 },
+  kicker: { fontFamily: "'JetBrains Mono', monospace", fontSize: 10, letterSpacing: 1.8, color: 'var(--text-muted)', marginBottom: 14, fontWeight: 700 },
   streakLine: { display: 'flex', alignItems: 'center', gap: 11 },
-  streakNum: { fontFamily: "'Archivo Black', sans-serif", fontSize: 54, lineHeight: 0.85, color: '#e8442f' },
-  streakLabel: { fontFamily: "'JetBrains Mono', monospace", fontSize: 10, letterSpacing: 1.5, fontWeight: 700, color: '#1a1a1a', lineHeight: 1.15 },
-  iconBtn: { width: 42, height: 42, border: '1.5px solid #e0d6c8', background: '#fff', fontSize: 18, cursor: 'pointer', fontFamily: "'JetBrains Mono', monospace", color: '#1a1a1a', borderRadius: 12, boxShadow: '0 1px 3px rgba(0,0,0,0.06)', display: 'flex', alignItems: 'center', justifyContent: 'center' },
-  divider: { height: 1, background: '#e0d6c8', margin: '4px 0 24px' },
+  streakNum: { fontFamily: "'Archivo Black', sans-serif", fontSize: 54, lineHeight: 0.85, color: 'var(--accent)' },
+  streakLabel: { fontFamily: "'JetBrains Mono', monospace", fontSize: 10, letterSpacing: 1.5, fontWeight: 700, color: 'var(--text)', lineHeight: 1.15 },
+  iconBtn: { width: 42, height: 42, border: '1.5px solid var(--border)', background: 'var(--surface)', fontSize: 18, cursor: 'pointer', fontFamily: "'JetBrains Mono', monospace", color: 'var(--text)', borderRadius: 12, boxShadow: '0 1px 3px var(--shadow-sm)', display: 'flex', alignItems: 'center', justifyContent: 'center' },
+  divider: { height: 1, background: 'var(--border)', margin: '4px 0 24px' },
 
   // Home
   homeIntro: { marginBottom: 30, textAlign: 'center' },
-  homeKicker: { fontFamily: "'JetBrains Mono', monospace", fontSize: 10, letterSpacing: 2, color: '#e8442f', fontWeight: 700, marginBottom: 8 },
-  homeTitle: { fontFamily: "'Archivo Black', sans-serif", fontSize: 34, lineHeight: 0.98, margin: 0, letterSpacing: -1, color: '#1a1a1a' },
+  homeKicker: { fontFamily: "'JetBrains Mono', monospace", fontSize: 10, letterSpacing: 2, color: 'var(--accent)', fontWeight: 700, marginBottom: 8 },
+  homeTitle: { fontFamily: "'Archivo Black', sans-serif", fontSize: 34, lineHeight: 0.98, margin: 0, letterSpacing: -1, color: 'var(--text)' },
   section: { marginBottom: 30 },
-  sectionLabel: { fontFamily: "'JetBrains Mono', monospace", fontSize: 10, letterSpacing: 1.8, fontWeight: 700, color: '#8a8178', marginBottom: 13 },
+  sectionLabel: { fontFamily: "'JetBrains Mono', monospace", fontSize: 10, letterSpacing: 1.8, fontWeight: 700, color: 'var(--text-muted)', marginBottom: 13 },
   targetRow: { display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10 },
-  dailyGoalLine: { fontFamily: "'Archivo Black', sans-serif", fontSize: 28, lineHeight: 1.05, letterSpacing: -0.6, color: '#1a1a1a', marginBottom: 20, marginTop: 8, textAlign: 'center' },
+  dailyGoalLine: { fontFamily: "'Archivo Black', sans-serif", fontSize: 28, lineHeight: 1.05, letterSpacing: -0.6, color: 'var(--text)', marginBottom: 20, marginTop: 8, textAlign: 'center' },
   primaryTargetBtn: { width: '100%', aspectRatio: 'auto', padding: '26px 0', marginBottom: 26 },
-  scaledHeader: { fontFamily: "'JetBrains Mono', monospace", fontSize: 10, letterSpacing: 1.8, fontWeight: 700, color: '#8a8178', marginBottom: 12, textAlign: 'center' },
+  scaledHeader: { fontFamily: "'JetBrains Mono', monospace", fontSize: 10, letterSpacing: 1.8, fontWeight: 700, color: 'var(--text-muted)', marginBottom: 12, textAlign: 'center' },
   scaledRow: { display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 10, maxWidth: '78%', margin: '0 auto' },
   scaledTargetBtn: { aspectRatio: '1' },
   scaledTargetBtnNum: { fontFamily: "'Archivo Black', sans-serif", fontSize: 34, lineHeight: 1 },
   scaledTargetBtnLabel: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, letterSpacing: 1.6, fontWeight: 700, marginTop: 5, opacity: 0.7 },
-  targetBtn: { aspectRatio: '1', border: '1.5px solid #e0d6c8', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', fontFamily: 'inherit', borderRadius: 18, boxShadow: '0 1px 3px rgba(0,0,0,0.06)' },
+  targetBtn: { aspectRatio: '1', border: '1.5px solid var(--border)', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', fontFamily: 'inherit', borderRadius: 18, boxShadow: '0 1px 3px var(--shadow-sm)' },
   targetBtnNum: { fontFamily: "'Archivo Black', sans-serif", fontSize: 42, lineHeight: 1 },
   targetBtnLabel: { fontFamily: "'JetBrains Mono', monospace", fontSize: 10, letterSpacing: 1.8, fontWeight: 700, marginTop: 5, opacity: 0.7 },
   equipCol: { display: 'flex', flexDirection: 'column', gap: 9 },
-  equipBtn: { display: 'grid', gridTemplateColumns: '1fr 26px', alignItems: 'center', gap: 14, padding: '17px 18px', border: '1.5px solid #e0d6c8', cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left', borderRadius: 14, boxShadow: '0 1px 3px rgba(0,0,0,0.06)' },
+  equipBtn: { display: 'grid', gridTemplateColumns: '1fr 26px', alignItems: 'center', gap: 14, padding: '17px 18px', border: '1.5px solid var(--border)', cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left', borderRadius: 14, boxShadow: '0 1px 3px var(--shadow-sm)' },
   equipLabel: { fontFamily: "'Archivo Black', sans-serif", fontSize: 15, letterSpacing: 0.3 },
-  equipCheck: { width: 24, height: 24, border: '2px solid #d0c6b8', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 13, fontWeight: 700, borderRadius: 7 },
-  poolHint: { fontFamily: "'JetBrains Mono', monospace", fontSize: 10, letterSpacing: 1, color: '#8a8178', marginTop: 10, fontWeight: 700 },
-  startBtn: { width: '100%', fontFamily: "'Archivo Black', sans-serif", fontSize: 26, padding: '22px 0', background: 'linear-gradient(135deg, #f25138 0%, #e8442f 100%)', color: '#fff', border: 'none', cursor: 'pointer', boxShadow: '0 6px 20px rgba(232,68,47,0.35)', marginBottom: 24, letterSpacing: 1, borderRadius: 16 },
+  equipCheck: { width: 24, height: 24, border: '2px solid var(--border-input)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--surface)', fontSize: 13, fontWeight: 700, borderRadius: 7 },
+  poolHint: { fontFamily: "'JetBrains Mono', monospace", fontSize: 10, letterSpacing: 1, color: 'var(--text-muted)', marginTop: 10, fontWeight: 700 },
+  startBtn: { width: '100%', fontFamily: "'Archivo Black', sans-serif", fontSize: 26, padding: '22px 0', background: 'var(--accent-gradient)', color: 'var(--surface)', border: 'none', cursor: 'pointer', boxShadow: '0 6px 20px var(--accent-shadow-lg)', marginBottom: 24, letterSpacing: 1, borderRadius: 16 },
 
   // Workout
   sessionBadges: { display: 'flex', gap: 7, marginBottom: 18, flexWrap: 'wrap', alignItems: 'center' },
-  changeLink: { fontFamily: "'JetBrains Mono', monospace", fontSize: 10, fontWeight: 700, letterSpacing: 1.2, padding: '7px 12px', background: '#fff', color: '#1a1a1a', border: '1.5px solid #e0d6c8', cursor: 'pointer', borderRadius: 8, boxShadow: '0 1px 2px rgba(0,0,0,0.05)' },
-  badge: { fontFamily: "'JetBrains Mono', monospace", fontSize: 10, fontWeight: 700, letterSpacing: 1.2, padding: '7px 12px', background: '#1a1a1a', color: '#faf6f0', borderRadius: 8 },
+  changeLink: { fontFamily: "'JetBrains Mono', monospace", fontSize: 10, fontWeight: 700, letterSpacing: 1.2, padding: '7px 12px', background: 'var(--surface)', color: 'var(--text)', border: '1.5px solid var(--border)', cursor: 'pointer', borderRadius: 8, boxShadow: '0 1px 2px var(--shadow-xs)' },
+  badge: { fontFamily: "'JetBrains Mono', monospace", fontSize: 10, fontWeight: 700, letterSpacing: 1.2, padding: '7px 12px', background: 'var(--text)', color: 'var(--bg-solid)', borderRadius: 8 },
 
-  card: { background: 'linear-gradient(160deg, #2a2a2a 0%, #161616 100%)', color: '#faf6f0', padding: '30px 24px', border: 'none', marginBottom: 20, borderRadius: 20, boxShadow: '0 8px 28px rgba(0,0,0,0.18)' },
-  todayLabel: { fontFamily: "'JetBrains Mono', monospace", fontSize: 10, letterSpacing: 2, color: '#ff6b54', fontWeight: 700, marginBottom: 10 },
+  card: { background: 'var(--dark-card-bg)', color: 'var(--bg-solid)', padding: '30px 24px', border: 'none', marginBottom: 20, borderRadius: 20, boxShadow: '0 8px 28px var(--shadow-lg)' },
+  todayLabel: { fontFamily: "'JetBrains Mono', monospace", fontSize: 10, letterSpacing: 2, color: 'var(--dark-card-accent)', fontWeight: 700, marginBottom: 10 },
   exerciseName: { fontFamily: "'Archivo Black', sans-serif", fontSize: 32, lineHeight: 0.96, margin: '0 0 14px', letterSpacing: -0.5 },
-  tip: { fontSize: 14, color: '#b5aca2', lineHeight: 1.5, borderTop: '1px solid rgba(255,255,255,0.12)', paddingTop: 14 },
-  howToLink: { display: 'inline-block', marginTop: 14, fontFamily: "'JetBrains Mono', monospace", fontSize: 10, letterSpacing: 1.5, fontWeight: 700, color: '#ff6b54', textDecoration: 'none', borderBottom: '1px solid #ff6b54', paddingBottom: 2 },
-  counterBlock: { background: '#fff', border: '1.5px solid #e0d6c8', padding: 22, marginBottom: 16, borderRadius: 20, boxShadow: '0 2px 10px rgba(0,0,0,0.05)' },
+  tip: { fontSize: 14, color: 'var(--dark-card-muted)', lineHeight: 1.5, borderTop: '1px solid var(--dark-card-border)', paddingTop: 14 },
+  howToLink: { display: 'inline-block', marginTop: 14, fontFamily: "'JetBrains Mono', monospace", fontSize: 10, letterSpacing: 1.5, fontWeight: 700, color: 'var(--dark-card-accent)', textDecoration: 'none', borderBottom: '1px solid var(--dark-card-accent)', paddingBottom: 2 },
+  counterBlock: { background: 'var(--surface)', border: '1.5px solid var(--border)', padding: 22, marginBottom: 16, borderRadius: 20, boxShadow: '0 2px 10px var(--shadow-xs)' },
 
-  schemeBar: { width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#faf6f0', border: '1.5px solid #e0d6c8', padding: '12px 16px', marginBottom: 18, cursor: 'pointer', fontFamily: 'inherit', color: '#1a1a1a', borderRadius: 12 },
+  schemeBar: { width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--bg-solid)', border: '1.5px solid var(--border)', padding: '12px 16px', marginBottom: 18, cursor: 'pointer', fontFamily: 'inherit', color: 'var(--text)', borderRadius: 12 },
   schemeBarLeft: { textAlign: 'left' },
   schemeBarRight: { textAlign: 'right', display: 'flex', alignItems: 'center', gap: 8 },
-  schemeLabel: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, letterSpacing: 1.5, color: '#8a8178', fontWeight: 700 },
+  schemeLabel: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, letterSpacing: 1.5, color: 'var(--text-muted)', fontWeight: 700 },
   schemeName: { fontFamily: "'Archivo Black', sans-serif", fontSize: 17, lineHeight: 1, marginTop: 3 },
-  schemeSub: { fontSize: 11, color: '#8a8178' },
-  schemeChevron: { fontSize: 13, color: '#8a8178' },
+  schemeSub: { fontSize: 11, color: 'var(--text-muted)' },
+  schemeChevron: { fontSize: 13, color: 'var(--text-muted)' },
   schemeGrid: { display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 7, marginBottom: 18 },
-  schemeChip: { border: '1.5px solid #e0d6c8', padding: '11px 9px', textAlign: 'left', fontFamily: 'inherit', borderRadius: 10, background: '#fff' },
+  schemeChip: { border: '1.5px solid var(--border)', padding: '11px 9px', textAlign: 'left', fontFamily: 'inherit', borderRadius: 10, background: 'var(--surface)' },
   schemeChipLabel: { fontFamily: "'Archivo Black', sans-serif", fontSize: 13, lineHeight: 1 },
   schemeChipSub: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, marginTop: 4, opacity: 0.65 },
-  schemeNote: { gridColumn: '1 / -1', fontFamily: "'JetBrains Mono', monospace", fontSize: 10, letterSpacing: 1, textAlign: 'center', color: '#8a8178', padding: '4px 0' },
+  schemeNote: { gridColumn: '1 / -1', fontFamily: "'JetBrains Mono', monospace", fontSize: 10, letterSpacing: 1, textAlign: 'center', color: 'var(--text-muted)', padding: '4px 0' },
 
   counterTop: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 16 },
-  repsLabel: { fontFamily: "'JetBrains Mono', monospace", fontSize: 10, letterSpacing: 1.5, fontWeight: 700, color: '#8a8178', marginBottom: 4 },
+  repsLabel: { fontFamily: "'JetBrains Mono', monospace", fontSize: 10, letterSpacing: 1.5, fontWeight: 700, color: 'var(--text-muted)', marginBottom: 4 },
   repsValue: { fontFamily: "'Archivo Black', sans-serif", fontSize: 64, lineHeight: 0.9 },
-  repsTarget: { color: '#cfc6ba', fontSize: 32 },
+  repsTarget: { color: 'var(--target-faint)', fontSize: 32 },
   pctBox: { fontFamily: "'JetBrains Mono', monospace", fontWeight: 700, paddingBottom: 8 },
-  pctValue: { fontSize: 20, color: '#1a1a1a' },
-  progressTrack: { height: 10, background: '#efe7da', border: 'none', marginBottom: 22, position: 'relative', overflow: 'hidden', borderRadius: 6 },
+  pctValue: { fontSize: 20, color: 'var(--text)' },
+  progressTrack: { height: 10, background: 'var(--progress-track)', border: 'none', marginBottom: 22, position: 'relative', overflow: 'hidden', borderRadius: 6 },
   progressFill: { height: '100%', transition: 'width 0.4s cubic-bezier(0.4,0,0.2,1), background 0.3s', borderRadius: 6 },
 
   setGrid: { display: 'grid', gap: 8, marginBottom: 12 },
-  setTile: { aspectRatio: '1', border: '1.5px solid #e0d6c8', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', fontFamily: 'inherit', padding: 4, borderRadius: 12, background: '#fff' },
+  setTile: { aspectRatio: '1', border: '1.5px solid var(--border)', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', fontFamily: 'inherit', padding: 4, borderRadius: 12, background: 'var(--surface)' },
   setTileNum: { fontFamily: "'Archivo Black', sans-serif", fontSize: 22, lineHeight: 1 },
   setTileLabel: { fontFamily: "'JetBrains Mono', monospace", fontSize: 8, letterSpacing: 1, fontWeight: 700, marginTop: 4 },
 
   btnRow: { display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8, marginBottom: 10 },
-  repBtn: { fontFamily: "'Archivo Black', sans-serif", fontSize: 20, padding: '18px 0', background: 'linear-gradient(135deg, #f25138 0%, #e8442f 100%)', color: '#fff', border: 'none', cursor: 'pointer', boxShadow: '0 3px 10px rgba(232,68,47,0.3)', borderRadius: 12 },
+  repBtn: { fontFamily: "'Archivo Black', sans-serif", fontSize: 20, padding: '18px 0', background: 'var(--accent-gradient)', color: 'var(--surface)', border: 'none', cursor: 'pointer', boxShadow: '0 3px 10px var(--accent-shadow-md)', borderRadius: 12 },
   secondaryRow: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 },
-  ghostBtn: { fontFamily: "'JetBrains Mono', monospace", fontSize: 11, fontWeight: 700, letterSpacing: 1.5, padding: '13px 0', background: '#fff', color: '#1a1a1a', border: '1.5px solid #e0d6c8', cursor: 'pointer', borderRadius: 10 },
-  primaryBtn: { fontFamily: "'JetBrains Mono', monospace", fontSize: 11, fontWeight: 700, letterSpacing: 1.5, padding: '13px 0', background: '#1a1a1a', color: '#fff', border: 'none', cursor: 'pointer', borderRadius: 10 },
+  ghostBtn: { fontFamily: "'JetBrains Mono', monospace", fontSize: 11, fontWeight: 700, letterSpacing: 1.5, padding: '13px 0', background: 'var(--surface)', color: 'var(--text)', border: '1.5px solid var(--border)', cursor: 'pointer', borderRadius: 10 },
+  primaryBtn: { fontFamily: "'JetBrains Mono', monospace", fontSize: 11, fontWeight: 700, letterSpacing: 1.5, padding: '13px 0', background: 'var(--text)', color: 'var(--surface)', border: 'none', cursor: 'pointer', borderRadius: 10 },
   doneBlock: { textAlign: 'center', padding: '12px 0' },
-  doneText: { fontFamily: "'Archivo Black', sans-serif", fontSize: 48, color: '#e8442f', lineHeight: 1 },
-  doneSub: { fontFamily: "'JetBrains Mono', monospace", fontSize: 11, letterSpacing: 2, color: '#8a8178', margin: '8px 0 16px', fontWeight: 700 },
-  footer: { display: 'flex', justifyContent: 'space-between', fontFamily: "'JetBrains Mono', monospace", fontSize: 9, letterSpacing: 1.5, color: '#8a8178', fontWeight: 700, paddingTop: 14, borderTop: '1px solid #e0d6c8' },
+  doneText: { fontFamily: "'Archivo Black', sans-serif", fontSize: 48, color: 'var(--accent)', lineHeight: 1 },
+  doneSub: { fontFamily: "'JetBrains Mono', monospace", fontSize: 11, letterSpacing: 2, color: 'var(--text-muted)', margin: '8px 0 16px', fontWeight: 700 },
+  footer: { display: 'flex', justifyContent: 'space-between', fontFamily: "'JetBrains Mono', monospace", fontSize: 9, letterSpacing: 1.5, color: 'var(--text-muted)', fontWeight: 700, paddingTop: 14, borderTop: '1px solid var(--border)' },
 
   flash: { position: 'fixed', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none', zIndex: 100 },
-  countdownOverlay: { position: 'fixed', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: 'rgba(15, 12, 10, 0.85)', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)', zIndex: 95, cursor: 'pointer', animation: 'fadeIn 0.2s ease' },
-  countdownNumber: { fontFamily: "'Archivo Black', sans-serif", fontSize: 220, lineHeight: 1, color: '#fff', textShadow: '0 0 40px rgba(232,68,47,0.6), 0 0 80px rgba(232,68,47,0.3)', letterSpacing: -8, animation: 'countdownTick 1s ease-out forwards' },
-  countdownGo: { fontSize: 140, background: 'linear-gradient(135deg, #ffd700 0%, #f25138 50%, #e8442f 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text', textShadow: 'none', letterSpacing: -4, animation: 'countdownGoIn 0.7s cubic-bezier(.36,.07,.19,.97) forwards' },
+  countdownOverlay: { position: 'fixed', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: 'var(--countdown-overlay)', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)', zIndex: 95, cursor: 'pointer', animation: 'fadeIn 0.2s ease' },
+  countdownNumber: { fontFamily: "'Archivo Black', sans-serif", fontSize: 220, lineHeight: 1, color: 'var(--surface)', textShadow: '0 0 40px rgba(232,68,47,0.6), 0 0 80px var(--accent-shadow-md)', letterSpacing: -8, animation: 'countdownTick 1s ease-out forwards' },
+  countdownGo: { fontSize: 140, background: 'linear-gradient(135deg, #ffd700 0%, var(--accent-light) 50%, var(--accent) 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text', textShadow: 'none', letterSpacing: -4, animation: 'countdownGoIn 0.7s cubic-bezier(.36,.07,.19,.97) forwards' },
   countdownHint: { position: 'absolute', bottom: 60, fontFamily: "'JetBrains Mono', monospace", fontSize: 11, letterSpacing: 2, color: 'rgba(255,255,255,0.5)', fontWeight: 700, textTransform: 'uppercase' },
-  flashInner: { background: 'linear-gradient(135deg, #f25138 0%, #e8442f 100%)', color: '#fff', padding: '40px 54px', border: 'none', boxShadow: '0 20px 50px rgba(232,68,47,0.45)', textAlign: 'center', animation: 'flashIn 4s ease-out forwards', position: 'relative', zIndex: 1, borderRadius: 24 },
+  flashInner: { background: 'var(--accent-gradient)', color: 'var(--surface)', padding: '40px 54px', border: 'none', boxShadow: '0 20px 50px var(--accent-shadow-lg)', textAlign: 'center', animation: 'flashIn 4s ease-out forwards', position: 'relative', zIndex: 1, borderRadius: 24 },
   flashDidIt: { fontFamily: "'Archivo Black', sans-serif", fontSize: 36, lineHeight: 1, letterSpacing: -0.5, marginBottom: 12 },
   flashBig: { fontFamily: "'Archivo Black', sans-serif", fontSize: 88, lineHeight: 0.9 },
   flashSub: { fontFamily: "'JetBrains Mono', monospace", fontSize: 14, letterSpacing: 3, fontWeight: 700, marginTop: 8 },
 
   // Sheet
-  sheetOverlay: { position: 'fixed', inset: 0, background: 'rgba(20,16,12,0.55)', display: 'flex', alignItems: 'flex-end', justifyContent: 'center', zIndex: 50, animation: 'fadeIn 0.2s ease' },
-  sheet: { width: '100%', maxWidth: 480, background: '#faf6f0', border: 'none', padding: '22px 20px', maxHeight: '88vh', overflow: 'auto', animation: 'slideUp 0.3s cubic-bezier(0.16,1,0.3,1)', borderRadius: '24px 24px 0 0', boxShadow: '0 -8px 40px rgba(0,0,0,0.2)' },
+  sheetOverlay: { position: 'fixed', inset: 0, background: 'var(--overlay)', display: 'flex', alignItems: 'flex-end', justifyContent: 'center', zIndex: 50, animation: 'fadeIn 0.2s ease' },
+  sheet: { width: '100%', maxWidth: 480, background: 'var(--bg-solid)', border: 'none', padding: '22px 20px', maxHeight: '88vh', overflow: 'auto', animation: 'slideUp 0.3s cubic-bezier(0.16,1,0.3,1)', borderRadius: '24px 24px 0 0', boxShadow: '0 -8px 40px var(--shadow-lg)' },
   sheetHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 22 },
   tabs: { display: 'flex', gap: 4 },
-  tab: { fontFamily: "'Archivo Black', sans-serif", fontSize: 15, padding: '7px 13px', background: 'transparent', border: 'none', color: '#c0b6a8', cursor: 'pointer', borderRadius: 10, display: 'inline-flex', alignItems: 'center', gap: 6 },
-  tabBadge: { background: '#e8442f', color: '#fff', borderRadius: 8, padding: '1px 6px', fontFamily: "'JetBrains Mono', monospace", fontSize: 9, fontWeight: 700, minWidth: 18, textAlign: 'center' },
-  tabActive: { color: '#1a1a1a', background: '#fff', boxShadow: '0 1px 3px rgba(0,0,0,0.08)' },
-  sheetTitleSolo: { fontFamily: "'Archivo Black', sans-serif", fontSize: 26, color: '#1a1a1a' },
-  adminFooter: { marginTop: 20, paddingTop: 16, borderTop: '1px solid #e0d6c8' },
+  tab: { fontFamily: "'Archivo Black', sans-serif", fontSize: 15, padding: '7px 13px', background: 'transparent', border: 'none', color: 'var(--text-subtle)', cursor: 'pointer', borderRadius: 10, display: 'inline-flex', alignItems: 'center', gap: 6 },
+  tabBadge: { background: 'var(--accent)', color: 'var(--surface)', borderRadius: 8, padding: '1px 6px', fontFamily: "'JetBrains Mono', monospace", fontSize: 9, fontWeight: 700, minWidth: 18, textAlign: 'center' },
+  tabActive: { color: 'var(--text)', background: 'var(--surface)', boxShadow: '0 1px 3px var(--shadow-md)' },
+  sheetTitleSolo: { fontFamily: "'Archivo Black', sans-serif", fontSize: 26, color: 'var(--text)' },
+  adminFooter: { marginTop: 20, paddingTop: 16, borderTop: '1px solid var(--border)' },
 
-  sheetStats: { display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, marginBottom: 20, background: '#fff', padding: '16px 10px', borderRadius: 14, border: '1.5px solid #e0d6c8', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' },
-  sectionHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', fontFamily: "'JetBrains Mono', monospace", fontSize: 10, letterSpacing: 1.8, fontWeight: 700, color: '#1a1a1a', marginTop: 18, marginBottom: 13, paddingBottom: 8, borderBottom: '1.5px solid #e0d6c8' },
-  sectionCount: { fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: '#e8442f' },
+  sheetStats: { display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, marginBottom: 20, background: 'var(--surface)', padding: '16px 10px', borderRadius: 14, border: '1.5px solid var(--border)', boxShadow: '0 1px 3px var(--shadow-xs)' },
+  sectionHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', fontFamily: "'JetBrains Mono', monospace", fontSize: 10, letterSpacing: 1.8, fontWeight: 700, color: 'var(--text)', marginTop: 18, marginBottom: 13, paddingBottom: 8, borderBottom: '1.5px solid var(--border)' },
+  sectionCount: { fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: 'var(--accent)' },
   medalGrid: { display: 'grid', gridTemplateColumns: '1fr', gap: 8, marginBottom: 8 },
-  medal: { display: 'grid', gridTemplateColumns: '44px 1fr', alignItems: 'center', gap: 13, padding: '12px 15px', border: '1.5px solid #e0d6c8', borderRadius: 12 },
+  medal: { display: 'grid', gridTemplateColumns: '44px 1fr', alignItems: 'center', gap: 13, padding: '12px 15px', border: '1.5px solid var(--border)', borderRadius: 12 },
   medalIcon: { width: 38, height: 38, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '50%', fontSize: 18, fontWeight: 700 },
   medalBody: { minWidth: 0 },
   medalLabel: { fontFamily: "'Archivo Black', sans-serif", fontSize: 14, lineHeight: 1, letterSpacing: 0.2 },
   medalSub: { fontFamily: "'JetBrains Mono', monospace", fontSize: 10, marginTop: 4, letterSpacing: 0.5 },
-  statNum: { fontFamily: "'Archivo Black', sans-serif", fontSize: 30, lineHeight: 1, color: '#e8442f', textAlign: 'center' },
-  statLabel: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, letterSpacing: 1.2, fontWeight: 700, color: '#8a8178', marginTop: 5, textAlign: 'center' },
+  statNum: { fontFamily: "'Archivo Black', sans-serif", fontSize: 30, lineHeight: 1, color: 'var(--accent)', textAlign: 'center' },
+  statLabel: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, letterSpacing: 1.2, fontWeight: 700, color: 'var(--text-muted)', marginTop: 5, textAlign: 'center' },
   historyList: { display: 'flex', flexDirection: 'column', gap: 2 },
-  historyRow: { display: 'grid', gridTemplateColumns: '70px 1fr 50px', alignItems: 'center', padding: '12px 0', borderBottom: '1px solid #e8e0d4', fontSize: 13 },
-  historyDate: { fontFamily: "'JetBrains Mono', monospace", fontWeight: 700, fontSize: 11, color: '#8a8178', letterSpacing: 1 },
+  historyRow: { display: 'grid', gridTemplateColumns: '70px 1fr 50px', alignItems: 'center', padding: '12px 0', borderBottom: '1px solid var(--border-soft)', fontSize: 13 },
+  historyDate: { fontFamily: "'JetBrains Mono', monospace", fontWeight: 700, fontSize: 11, color: 'var(--text-muted)', letterSpacing: 1 },
   historyEx: { fontWeight: 600, fontSize: 13 },
-  historyScheme: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, letterSpacing: 1, color: '#8a8178', marginTop: 2 },
-  historyReps: { fontFamily: "'JetBrains Mono', monospace", fontWeight: 700, textAlign: 'right', color: '#e8442f' },
-  emptyHistory: { padding: '40px 0', textAlign: 'center', color: '#8a8178', fontSize: 13 },
-  accountBlock: { marginTop: 24, padding: '16px', background: '#fff', border: '1.5px solid #e0d6c8', borderRadius: 14, display: 'flex', flexDirection: 'column', gap: 14, boxShadow: '0 1px 3px rgba(0,0,0,0.05)' },
+  historyScheme: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, letterSpacing: 1, color: 'var(--text-muted)', marginTop: 2 },
+  historyReps: { fontFamily: "'JetBrains Mono', monospace", fontWeight: 700, textAlign: 'right', color: 'var(--accent)' },
+  emptyHistory: { padding: '40px 0', textAlign: 'center', color: 'var(--text-muted)', fontSize: 13 },
+  accountBlock: { marginTop: 24, padding: '16px', background: 'var(--surface)', border: '1.5px solid var(--border)', borderRadius: 14, display: 'flex', flexDirection: 'column', gap: 14, boxShadow: '0 1px 3px var(--shadow-xs)' },
+  themeRow: { display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, marginBottom: 4 },
+  themeBtn: { fontFamily: "'JetBrains Mono', monospace", fontSize: 11, fontWeight: 700, letterSpacing: 1.5, padding: '12px 0', border: '1.5px solid var(--border)', cursor: 'pointer', borderRadius: 10, boxShadow: '0 1px 2px var(--shadow-xs)' },
   accountInfo: { minWidth: 0 },
   accountName: { fontFamily: "'Archivo Black', sans-serif", fontSize: 14, lineHeight: 1.1 },
-  accountEmail: { fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: '#8a8178', marginTop: 3, letterSpacing: 0.5, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
+  accountEmail: { fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: 'var(--text-muted)', marginTop: 3, letterSpacing: 0.5, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
   accountActions: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 },
 
-  bigAddBtn: { width: '100%', fontFamily: "'Archivo Black', sans-serif", fontSize: 17, padding: '17px 0', background: 'linear-gradient(135deg, #f25138 0%, #e8442f 100%)', color: '#fff', border: 'none', cursor: 'pointer', boxShadow: '0 4px 14px rgba(232,68,47,0.3)', marginBottom: 24, letterSpacing: 1, borderRadius: 14 },
-  addForm: { border: '1.5px solid #e0d6c8', padding: 18, marginBottom: 24, background: '#fff', borderRadius: 14 },
-  formLabel: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, letterSpacing: 1.5, fontWeight: 700, color: '#8a8178', marginBottom: 6 },
-  formHelp: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: '#8a8178', marginTop: -8, marginBottom: 12, fontStyle: 'italic' },
-  nameInput: { fontFamily: "'Archivo Black', sans-serif", fontSize: 18, padding: '11px 14px', border: '1.5px solid #e0d6c8', background: '#faf6f0', letterSpacing: 0.5, textTransform: 'uppercase', borderRadius: 10 },
+  bigAddBtn: { width: '100%', fontFamily: "'Archivo Black', sans-serif", fontSize: 17, padding: '17px 0', background: 'var(--accent-gradient)', color: 'var(--surface)', border: 'none', cursor: 'pointer', boxShadow: '0 4px 14px var(--accent-shadow-md)', marginBottom: 24, letterSpacing: 1, borderRadius: 14 },
+  addForm: { border: '1.5px solid var(--border)', padding: 18, marginBottom: 24, background: 'var(--surface)', borderRadius: 14 },
+  formLabel: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, letterSpacing: 1.5, fontWeight: 700, color: 'var(--text-muted)', marginBottom: 6 },
+  formHelp: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: 'var(--text-muted)', marginTop: -8, marginBottom: 12, fontStyle: 'italic' },
+  nameInput: { fontFamily: "'Archivo Black', sans-serif", fontSize: 18, padding: '11px 14px', border: '1.5px solid var(--border)', background: 'var(--bg-solid)', letterSpacing: 0.5, textTransform: 'uppercase', borderRadius: 10 },
   formEquipRow: { display: 'flex', gap: 6, marginBottom: 14, flexWrap: 'wrap' },
-  formEquipChip: { padding: '9px 12px', border: '1.5px solid #e0d6c8', fontFamily: "'JetBrains Mono', monospace", fontSize: 10, fontWeight: 700, letterSpacing: 1, cursor: 'pointer', borderRadius: 8 },
-  tipInput: { width: '100%', fontSize: 14, padding: '11px 14px', border: '1.5px solid #e0d6c8', background: '#faf6f0', marginBottom: 12, borderRadius: 10 },
+  formEquipChip: { padding: '9px 12px', border: '1.5px solid var(--border)', fontFamily: "'JetBrains Mono', monospace", fontSize: 10, fontWeight: 700, letterSpacing: 1, cursor: 'pointer', borderRadius: 8 },
+  tipInput: { width: '100%', fontSize: 14, padding: '11px 14px', border: '1.5px solid var(--border)', background: 'var(--bg-solid)', marginBottom: 12, borderRadius: 10 },
   formButtons: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 },
-  errorText: { color: '#e8442f', fontFamily: "'JetBrains Mono', monospace", fontSize: 11, fontWeight: 700, marginBottom: 10 },
+  errorText: { color: 'var(--accent)', fontFamily: "'JetBrains Mono', monospace", fontSize: 11, fontWeight: 700, marginBottom: 10 },
 
-  movesHeader: { fontFamily: "'JetBrains Mono', monospace", fontSize: 10, letterSpacing: 1.8, fontWeight: 700, color: '#1a1a1a', marginTop: 8, marginBottom: 10, paddingBottom: 8, borderBottom: '1.5px solid #e0d6c8' },
-  emptyMoves: { padding: '20px 0', textAlign: 'center', color: '#8a8178', fontSize: 12, fontStyle: 'italic' },
-  moveRow: { display: 'grid', gridTemplateColumns: '1fr auto', alignItems: 'center', gap: 12, padding: '11px 0', borderBottom: '1px solid #e8e0d4' },
+  movesHeader: { fontFamily: "'JetBrains Mono', monospace", fontSize: 10, letterSpacing: 1.8, fontWeight: 700, color: 'var(--text)', marginTop: 8, marginBottom: 10, paddingBottom: 8, borderBottom: '1.5px solid var(--border)' },
+  emptyMoves: { padding: '20px 0', textAlign: 'center', color: 'var(--text-muted)', fontSize: 12, fontStyle: 'italic' },
+  moveRow: { display: 'grid', gridTemplateColumns: '1fr auto', alignItems: 'center', gap: 12, padding: '11px 0', borderBottom: '1px solid var(--border-soft)' },
   moveBody: { minWidth: 0 },
   moveName: { fontFamily: "'Archivo Black', sans-serif", fontSize: 14, lineHeight: 1.1 },
-  moveMeta: { fontSize: 10, color: '#8a8178', marginTop: 3, lineHeight: 1.3, fontFamily: "'JetBrains Mono', monospace", letterSpacing: 0.5 },
-  deleteBtn: { width: 34, height: 34, border: '1.5px solid #e0d6c8', background: '#fff', fontSize: 13, cursor: 'pointer', color: '#8a8178', fontFamily: 'inherit', borderRadius: 9 },
-  toggleBtn: { minWidth: 52, padding: '7px 11px', border: '1.5px solid #e0d6c8', fontFamily: "'JetBrains Mono', monospace", fontSize: 10, fontWeight: 700, letterSpacing: 1, cursor: 'pointer', borderRadius: 7 },
+  moveMeta: { fontSize: 10, color: 'var(--text-muted)', marginTop: 3, lineHeight: 1.3, fontFamily: "'JetBrains Mono', monospace", letterSpacing: 0.5 },
+  deleteBtn: { width: 34, height: 34, border: '1.5px solid var(--border)', background: 'var(--surface)', fontSize: 13, cursor: 'pointer', color: 'var(--text-muted)', fontFamily: 'inherit', borderRadius: 9 },
+  toggleBtn: { minWidth: 52, padding: '7px 11px', border: '1.5px solid var(--border)', fontFamily: "'JetBrains Mono', monospace", fontSize: 10, fontWeight: 700, letterSpacing: 1, cursor: 'pointer', borderRadius: 7 },
 
   // Auth screen
   authFrame: { maxWidth: 420, margin: '0 auto', padding: '32px 4px', display: 'flex', flexDirection: 'column', minHeight: '100vh' },
   authBrand: { marginTop: 24, marginBottom: 40, textAlign: 'center' },
-  authKicker: { fontFamily: "'JetBrains Mono', monospace", fontSize: 11, letterSpacing: 3, color: '#e8442f', fontWeight: 700, marginBottom: 16 },
-  authTitle: { fontFamily: "'Archivo Black', sans-serif", fontSize: 34, lineHeight: 1.08, margin: 0, letterSpacing: -1, color: '#1a1a1a' },
-  appleBtn: { width: '100%', padding: '17px 0', background: '#1a1a1a', color: '#fff', border: 'none', fontFamily: "'Archivo Black', sans-serif", fontSize: 14, letterSpacing: 1, cursor: 'pointer', borderRadius: 14, marginBottom: 10, boxShadow: '0 4px 14px rgba(26,26,26,0.25)' },
-  googleBtn: { width: '100%', padding: '17px 0', background: '#fff', color: '#1a1a1a', border: '1.5px solid #e0d6c8', fontFamily: "'Archivo Black', sans-serif", fontSize: 14, letterSpacing: 1, cursor: 'pointer', borderRadius: 14, marginBottom: 10, boxShadow: '0 1px 3px rgba(0,0,0,0.06)' },
+  authKicker: { fontFamily: "'JetBrains Mono', monospace", fontSize: 11, letterSpacing: 3, color: 'var(--accent)', fontWeight: 700, marginBottom: 16 },
+  authTitle: { fontFamily: "'Archivo Black', sans-serif", fontSize: 34, lineHeight: 1.08, margin: 0, letterSpacing: -1, color: 'var(--text)' },
+  appleBtn: { width: '100%', padding: '17px 0', background: 'var(--text)', color: 'var(--surface)', border: 'none', fontFamily: "'Archivo Black', sans-serif", fontSize: 14, letterSpacing: 1, cursor: 'pointer', borderRadius: 14, marginBottom: 10, boxShadow: '0 4px 14px var(--shadow-charcoal)' },
+  googleBtn: { width: '100%', padding: '17px 0', background: 'var(--surface)', color: 'var(--text)', border: '1.5px solid var(--border)', fontFamily: "'Archivo Black', sans-serif", fontSize: 14, letterSpacing: 1, cursor: 'pointer', borderRadius: 14, marginBottom: 10, boxShadow: '0 1px 3px var(--shadow-sm)' },
   authDivider: { display: 'flex', alignItems: 'center', gap: 12, margin: '20px 0' },
-  authDividerLine: { flex: 1, height: 1, background: '#e0d6c8' },
-  authDividerText: { fontFamily: "'JetBrains Mono', monospace", fontSize: 10, letterSpacing: 2, color: '#8a8178', fontWeight: 700 },
-  emailBtn: { width: '100%', padding: '17px 0', background: 'linear-gradient(135deg, #f25138 0%, #e8442f 100%)', color: '#fff', border: 'none', fontFamily: "'Archivo Black', sans-serif", fontSize: 14, letterSpacing: 1, cursor: 'pointer', borderRadius: 14, marginBottom: 10, boxShadow: '0 4px 14px rgba(232,68,47,0.3)' },
-  authTextLink: { width: '100%', padding: '12px 0', background: 'transparent', color: '#1a1a1a', border: 'none', fontFamily: 'inherit', fontSize: 13, textDecoration: 'underline', cursor: 'pointer', marginTop: 4 },
-  authBackLink: { width: '100%', padding: '8px 0', background: 'transparent', color: '#8a8178', border: 'none', fontFamily: "'JetBrains Mono', monospace", fontSize: 10, letterSpacing: 1, fontWeight: 700, cursor: 'pointer', marginTop: 6 },
-  authFinePrint: { textAlign: 'center', fontFamily: "'JetBrains Mono', monospace", fontSize: 10, letterSpacing: 1, color: '#8a8178', marginTop: 'auto', paddingTop: 24 },
-  authForm: { background: '#fff', border: '1.5px solid #e0d6c8', borderRadius: 18, padding: 22, marginBottom: 12, boxShadow: '0 2px 12px rgba(0,0,0,0.06)' },
+  authDividerLine: { flex: 1, height: 1, background: 'var(--border)' },
+  authDividerText: { fontFamily: "'JetBrains Mono', monospace", fontSize: 10, letterSpacing: 2, color: 'var(--text-muted)', fontWeight: 700 },
+  emailBtn: { width: '100%', padding: '17px 0', background: 'var(--accent-gradient)', color: 'var(--surface)', border: 'none', fontFamily: "'Archivo Black', sans-serif", fontSize: 14, letterSpacing: 1, cursor: 'pointer', borderRadius: 14, marginBottom: 10, boxShadow: '0 4px 14px var(--accent-shadow-md)' },
+  authTextLink: { width: '100%', padding: '12px 0', background: 'transparent', color: 'var(--text)', border: 'none', fontFamily: 'inherit', fontSize: 13, textDecoration: 'underline', cursor: 'pointer', marginTop: 4 },
+  authBackLink: { width: '100%', padding: '8px 0', background: 'transparent', color: 'var(--text-muted)', border: 'none', fontFamily: "'JetBrains Mono', monospace", fontSize: 10, letterSpacing: 1, fontWeight: 700, cursor: 'pointer', marginTop: 6 },
+  authFinePrint: { textAlign: 'center', fontFamily: "'JetBrains Mono', monospace", fontSize: 10, letterSpacing: 1, color: 'var(--text-muted)', marginTop: 'auto', paddingTop: 24 },
+  authForm: { background: 'var(--surface)', border: '1.5px solid var(--border)', borderRadius: 18, padding: 22, marginBottom: 12, boxShadow: '0 2px 12px var(--shadow-sm)' },
   authFormTitle: { fontFamily: "'Archivo Black', sans-serif", fontSize: 22, marginBottom: 16, letterSpacing: -0.3 },
-  authLabel: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, letterSpacing: 1.5, fontWeight: 700, color: '#8a8178', marginBottom: 6, marginTop: 4 },
-  authInput: { width: '100%', fontFamily: 'inherit', fontSize: 15, padding: '13px 15px', border: '1.5px solid #e0d6c8', background: '#faf6f0', marginBottom: 14, borderRadius: 10 },
-  authErrorText: { color: '#e8442f', fontFamily: "'JetBrains Mono', monospace", fontSize: 11, fontWeight: 700, marginBottom: 12 },
-  authSubmitBtn: { width: '100%', padding: '17px 0', background: '#1a1a1a', color: '#fff', border: 'none', fontFamily: "'Archivo Black', sans-serif", fontSize: 14, letterSpacing: 1, cursor: 'pointer', borderRadius: 14, boxShadow: '0 4px 14px rgba(26,26,26,0.25)' },
+  authLabel: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, letterSpacing: 1.5, fontWeight: 700, color: 'var(--text-muted)', marginBottom: 6, marginTop: 4 },
+  authInput: { width: '100%', fontFamily: 'inherit', fontSize: 15, padding: '13px 15px', border: '1.5px solid var(--border)', background: 'var(--bg-solid)', marginBottom: 14, borderRadius: 10 },
+  authErrorText: { color: 'var(--accent)', fontFamily: "'JetBrains Mono', monospace", fontSize: 11, fontWeight: 700, marginBottom: 12 },
+  authSubmitBtn: { width: '100%', padding: '17px 0', background: 'var(--text)', color: 'var(--surface)', border: 'none', fontFamily: "'Archivo Black', sans-serif", fontSize: 14, letterSpacing: 1, cursor: 'pointer', borderRadius: 14, boxShadow: '0 4px 14px var(--shadow-charcoal)' },
 
   // Friends UI
   subtabRow: { display: 'flex', gap: 4, marginBottom: 16, overflowX: 'auto', paddingBottom: 4 },
-  subtab: { fontFamily: "'JetBrains Mono', monospace", fontSize: 10, fontWeight: 700, letterSpacing: 1.2, padding: '9px 13px', border: '1.5px solid #e0d6c8', cursor: 'pointer', borderRadius: 8, whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center', gap: 6 },
-  subtabBadge: { background: '#e8442f', color: '#fff', borderRadius: 6, padding: '1px 5px', fontSize: 9, fontWeight: 700 },
-  emptyFriends: { padding: '32px 16px', textAlign: 'center', color: '#8a8178', fontSize: 13, fontStyle: 'italic' },
-  leaderRow: { display: 'grid', gridTemplateColumns: '34px 1fr auto auto', alignItems: 'center', gap: 10, padding: '11px 12px', borderBottom: '1px solid #e8e0d4', borderRadius: 10 },
-  leaderRank: { fontFamily: "'Archivo Black', sans-serif", fontSize: 18, color: '#e8442f', textAlign: 'center' },
+  subtab: { fontFamily: "'JetBrains Mono', monospace", fontSize: 10, fontWeight: 700, letterSpacing: 1.2, padding: '9px 13px', border: '1.5px solid var(--border)', cursor: 'pointer', borderRadius: 8, whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center', gap: 6 },
+  subtabBadge: { background: 'var(--accent)', color: 'var(--surface)', borderRadius: 6, padding: '1px 5px', fontSize: 9, fontWeight: 700 },
+  emptyFriends: { padding: '32px 16px', textAlign: 'center', color: 'var(--text-muted)', fontSize: 13, fontStyle: 'italic' },
+  leaderRow: { display: 'grid', gridTemplateColumns: '34px 1fr auto auto', alignItems: 'center', gap: 10, padding: '11px 12px', borderBottom: '1px solid var(--border-soft)', borderRadius: 10 },
+  leaderRank: { fontFamily: "'Archivo Black', sans-serif", fontSize: 18, color: 'var(--accent)', textAlign: 'center' },
   leaderBody: { minWidth: 0 },
   leaderName: { fontFamily: "'Archivo Black', sans-serif", fontSize: 14, lineHeight: 1.1 },
-  leaderHandle: { fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: '#8a8178', marginTop: 2 },
+  leaderHandle: { fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: 'var(--text-muted)', marginTop: 2 },
   leaderStreak: { textAlign: 'right', lineHeight: 1 },
-  leaderStreakNum: { fontFamily: "'Archivo Black', sans-serif", fontSize: 22, color: '#1a1a1a', display: 'block' },
-  leaderStreakLabel: { fontFamily: "'JetBrains Mono', monospace", fontSize: 8, color: '#8a8178', letterSpacing: 1, fontWeight: 700 },
-  requestRow: { display: 'flex', alignItems: 'center', gap: 8, padding: '11px 0', borderBottom: '1px solid #e8e0d4' },
-  acceptBtn: { fontFamily: "'JetBrains Mono', monospace", fontSize: 10, fontWeight: 700, letterSpacing: 1, padding: '9px 13px', background: 'linear-gradient(135deg, #f25138 0%, #e8442f 100%)', color: '#fff', border: 'none', cursor: 'pointer', borderRadius: 8, boxShadow: '0 2px 8px rgba(232,68,47,0.25)' },
-  declineBtn: { fontFamily: "'JetBrains Mono', monospace", fontSize: 10, fontWeight: 700, padding: '9px 11px', background: '#fff', color: '#1a1a1a', border: '1.5px solid #e0d6c8', cursor: 'pointer', borderRadius: 8 },
-  smallGhostBtn: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, fontWeight: 700, letterSpacing: 1, padding: '7px 11px', background: '#fff', color: '#1a1a1a', border: '1.5px solid #e0d6c8', cursor: 'pointer', borderRadius: 8 },
-  helpText: { fontSize: 12, color: '#8a8178', lineHeight: 1.45, marginBottom: 16, padding: '12px 14px', background: '#fff', borderRadius: 12, border: '1.5px solid #e0d6c8' },
-  memberPickRow: { width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '11px 15px', border: '1.5px solid #e0d6c8', cursor: 'pointer', borderRadius: 10, marginBottom: 6, fontFamily: 'inherit', fontSize: 14, fontWeight: 600 },
-  squadCard: { background: '#fff', border: '1.5px solid #e0d6c8', borderRadius: 16, padding: 16, marginBottom: 12, boxShadow: '0 2px 10px rgba(0,0,0,0.05)' },
+  leaderStreakNum: { fontFamily: "'Archivo Black', sans-serif", fontSize: 22, color: 'var(--text)', display: 'block' },
+  leaderStreakLabel: { fontFamily: "'JetBrains Mono', monospace", fontSize: 8, color: 'var(--text-muted)', letterSpacing: 1, fontWeight: 700 },
+  requestRow: { display: 'flex', alignItems: 'center', gap: 8, padding: '11px 0', borderBottom: '1px solid var(--border-soft)' },
+  acceptBtn: { fontFamily: "'JetBrains Mono', monospace", fontSize: 10, fontWeight: 700, letterSpacing: 1, padding: '9px 13px', background: 'var(--accent-gradient)', color: 'var(--surface)', border: 'none', cursor: 'pointer', borderRadius: 8, boxShadow: '0 2px 8px var(--accent-shadow-sm)' },
+  declineBtn: { fontFamily: "'JetBrains Mono', monospace", fontSize: 10, fontWeight: 700, padding: '9px 11px', background: 'var(--surface)', color: 'var(--text)', border: '1.5px solid var(--border)', cursor: 'pointer', borderRadius: 8 },
+  smallGhostBtn: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, fontWeight: 700, letterSpacing: 1, padding: '7px 11px', background: 'var(--surface)', color: 'var(--text)', border: '1.5px solid var(--border)', cursor: 'pointer', borderRadius: 8 },
+  helpText: { fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.45, marginBottom: 16, padding: '12px 14px', background: 'var(--surface)', borderRadius: 12, border: '1.5px solid var(--border)' },
+  memberPickRow: { width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '11px 15px', border: '1.5px solid var(--border)', cursor: 'pointer', borderRadius: 10, marginBottom: 6, fontFamily: 'inherit', fontSize: 14, fontWeight: 600 },
+  squadCard: { background: 'var(--surface)', border: '1.5px solid var(--border)', borderRadius: 16, padding: 16, marginBottom: 12, boxShadow: '0 2px 10px var(--shadow-xs)' },
   squadHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 },
   squadName: { fontFamily: "'Archivo Black', sans-serif", fontSize: 18, lineHeight: 1, letterSpacing: -0.3 },
-  squadMembers: { fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: '#8a8178', marginTop: 4 },
-  squadStreakBlock: { display: 'flex', alignItems: 'center', gap: 12, padding: '14px 16px', background: 'linear-gradient(160deg, #2a2a2a 0%, #161616 100%)', color: '#faf6f0', borderRadius: 12, marginBottom: 12 },
-  squadStreakNum: { fontFamily: "'Archivo Black', sans-serif", fontSize: 40, lineHeight: 0.85, color: '#e8442f' },
+  squadMembers: { fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: 'var(--text-muted)', marginTop: 4 },
+  squadStreakBlock: { display: 'flex', alignItems: 'center', gap: 12, padding: '14px 16px', background: 'var(--dark-card-bg)', color: 'var(--bg-solid)', borderRadius: 12, marginBottom: 12 },
+  squadStreakNum: { fontFamily: "'Archivo Black', sans-serif", fontSize: 40, lineHeight: 0.85, color: 'var(--accent)' },
   squadStreakLabel: { fontFamily: "'JetBrains Mono', monospace", fontSize: 10, letterSpacing: 1.5, fontWeight: 700, lineHeight: 1.2 },
   squadMemberList: { display: 'flex', flexDirection: 'column', gap: 4 },
   squadMemberRow: { display: 'flex', justifyContent: 'space-between', fontSize: 13, padding: '4px 0' },
-  squadMemberStreak: { fontFamily: "'JetBrains Mono', monospace", fontWeight: 700, color: '#e8442f' },
+  squadMemberStreak: { fontFamily: "'JetBrains Mono', monospace", fontWeight: 700, color: 'var(--accent)' },
 
-  loadingWrap: { minHeight: '100vh', background: '#faf6f0', display: 'flex', alignItems: 'center', justifyContent: 'center' },
-  loadingDot: { width: 16, height: 16, background: '#e8442f', borderRadius: '50%', animation: 'pulse 1.2s ease-in-out infinite' },
+  loadingWrap: { minHeight: '100vh', background: 'var(--bg-solid)', display: 'flex', alignItems: 'center', justifyContent: 'center' },
+  loadingDot: { width: 16, height: 16, background: 'var(--accent)', borderRadius: '50%', animation: 'pulse 1.2s ease-in-out infinite' },
 };
