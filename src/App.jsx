@@ -2097,9 +2097,9 @@ const styles = {
   changeLink: { fontFamily: "'JetBrains Mono', monospace", fontSize: 10, fontWeight: 700, letterSpacing: 1.2, padding: '7px 12px', background: 'var(--surface)', color: 'var(--text)', border: '1.5px solid var(--border)', cursor: 'pointer', borderRadius: 8, boxShadow: '0 1px 2px var(--shadow-xs)' },
   badge: { fontFamily: "'JetBrains Mono', monospace", fontSize: 10, fontWeight: 700, letterSpacing: 1.2, padding: '7px 12px', background: 'var(--text)', color: 'var(--bg-solid)', borderRadius: 8 },
 
-  card: { background: 'var(--dark-card-bg)', color: 'var(--bg-solid)', padding: '30px 24px', border: 'none', marginBottom: 20, borderRadius: 20, boxShadow: '0 8px 28px var(--shadow-lg)' },
+  card: { background: 'var(--dark-card-bg)', color: 'var(--dark-card-text)', padding: '30px 24px', border: 'none', marginBottom: 20, borderRadius: 20, boxShadow: '0 8px 28px var(--shadow-lg)' },
   todayLabel: { fontFamily: "'JetBrains Mono', monospace", fontSize: 10, letterSpacing: 2, color: 'var(--dark-card-accent)', fontWeight: 700, marginBottom: 10 },
-  exerciseName: { fontFamily: "'Archivo Black', sans-serif", fontSize: 32, lineHeight: 0.96, margin: '0 0 14px', letterSpacing: -0.5 },
+  exerciseName: { fontFamily: "'Archivo Black', sans-serif", fontSize: 32, lineHeight: 0.96, margin: '0 0 14px', letterSpacing: -0.5, color: 'var(--dark-card-accent)' },
   tip: { fontSize: 14, color: 'var(--dark-card-muted)', lineHeight: 1.5, borderTop: '1px solid var(--dark-card-border)', paddingTop: 14 },
   howToLink: { display: 'inline-block', marginTop: 14, fontFamily: "'JetBrains Mono', monospace", fontSize: 10, letterSpacing: 1.5, fontWeight: 700, color: 'var(--dark-card-accent)', textDecoration: 'none', borderBottom: '1px solid var(--dark-card-accent)', paddingBottom: 2 },
   counterBlock: { background: 'var(--surface)', border: '1.5px solid var(--border)', padding: 22, marginBottom: 16, borderRadius: 20, boxShadow: '0 2px 10px var(--shadow-xs)' },
