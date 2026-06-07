@@ -54,6 +54,7 @@ export const BUILTIN_EXERCISES = [
   { name: 'DONKEY KICKS', tip: 'On all fours. Squeeze glute at the top.', equipment: ['bodyweight'] },
   { name: 'PIKE PUSH-UPS', tip: 'Hips high, head between hands. Shoulder builder.', equipment: ['bodyweight'] },
   { name: 'STANDING MARCH', tip: 'March in place with arms directly overhead. Could also hold a weight.', equipment: ['bodyweight'] },
+  { name: 'DROP SQUAT', tip: 'Chest up and move fast.', equipment: ['bodyweight'] },
   // Add your bodyweight exercises here
 
   // ---- Dumbbell ----
