@@ -70,6 +70,7 @@ export const BUILTIN_EXERCISES = [
   { name: 'RENEGADE ROWS', tip: 'Plank position. Each side = 1 rep.', equipment: ['dumbbell'] },
   { name: 'DUMBBELL PULLOVERS', tip: 'Lying down. Stretch overhead, pull to chest.', equipment: ['dumbbell'] },
   { name: 'ZOTTMAN CURLS', tip: 'Lighter dumbbell than you think. This is an arm burn.', equipment: ['dumbbell'] },
+  { name: 'SKULL CRUSHERS', tip: 'Don\'t smash your head.', equipment: ['dumbbell'] },
   // Add your dumbbell exercises here
 
   // ---- Kettlebell ----
