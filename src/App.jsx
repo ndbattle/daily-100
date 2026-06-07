@@ -656,6 +656,11 @@ export default function DailyHundred() {
     setAuthMode('options');
   }
 
+  function resetStreak() {
+    if (!window.confirm('Reset your streak to 0?\n\nYour best streak, medals, and workout history will stay — only the current streak counter resets.')) return;
+    setState({ ...state, streak: 0, lastCompletedDate: null });
+  }
+
   // ---- Friends handlers ----
   function sendFriendRequest(person) {
     if (state.outgoingRequests.find((p) => p.id === person.id)) return;
@@ -1443,7 +1448,14 @@ export default function DailyHundred() {
                     {state.user.email} · {state.user.provider.toUpperCase()}
                   </div>
                 </div>
-                <button style={styles.ghostBtn} onClick={signOut}>SIGN OUT</button>
+                <div style={styles.accountActions}>
+                  <button
+                    style={styles.ghostBtn}
+                    onClick={resetStreak}
+                    disabled={state.streak === 0}
+                  >RESET STREAK</button>
+                  <button style={styles.ghostBtn} onClick={signOut}>SIGN OUT</button>
+                </div>
               </div>
             </>
           )}
@@ -2043,10 +2055,11 @@ const styles = {
   historyScheme: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, letterSpacing: 1, color: '#8a8178', marginTop: 2 },
   historyReps: { fontFamily: "'JetBrains Mono', monospace", fontWeight: 700, textAlign: 'right', color: '#e8442f' },
   emptyHistory: { padding: '40px 0', textAlign: 'center', color: '#8a8178', fontSize: 13 },
-  accountBlock: { marginTop: 24, padding: '16px', background: '#fff', border: '1.5px solid #e0d6c8', borderRadius: 14, display: 'grid', gridTemplateColumns: '1fr auto', alignItems: 'center', gap: 12, boxShadow: '0 1px 3px rgba(0,0,0,0.05)' },
+  accountBlock: { marginTop: 24, padding: '16px', background: '#fff', border: '1.5px solid #e0d6c8', borderRadius: 14, display: 'flex', flexDirection: 'column', gap: 14, boxShadow: '0 1px 3px rgba(0,0,0,0.05)' },
   accountInfo: { minWidth: 0 },
   accountName: { fontFamily: "'Archivo Black', sans-serif", fontSize: 14, lineHeight: 1.1 },
   accountEmail: { fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: '#8a8178', marginTop: 3, letterSpacing: 0.5, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
+  accountActions: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 },
 
   bigAddBtn: { width: '100%', fontFamily: "'Archivo Black', sans-serif", fontSize: 17, padding: '17px 0', background: 'linear-gradient(135deg, #f25138 0%, #e8442f 100%)', color: '#fff', border: 'none', cursor: 'pointer', boxShadow: '0 4px 14px rgba(232,68,47,0.3)', marginBottom: 24, letterSpacing: 1, borderRadius: 14 },
   addForm: { border: '1.5px solid #e0d6c8', padding: 18, marginBottom: 24, background: '#fff', borderRadius: 14 },
