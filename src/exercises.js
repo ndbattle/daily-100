@@ -53,6 +53,7 @@ export const BUILTIN_EXERCISES = [
   { name: 'SKATER JUMPS', tip: 'Side to side. Land soft, sweep back leg.', equipment: ['bodyweight'] },
   { name: 'DONKEY KICKS', tip: 'On all fours. Squeeze glute at the top.', equipment: ['bodyweight'] },
   { name: 'PIKE PUSH-UPS', tip: 'Hips high, head between hands. Shoulder builder.', equipment: ['bodyweight'] },
+  { name: 'STANDING MARCH', tip: 'March in place with arms directly overhead. Could also hold a weight.', equipment: ['bodyweight'] },
   // Add your bodyweight exercises here
 
   // ---- Dumbbell ----
