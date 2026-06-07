@@ -80,16 +80,55 @@ function hashStr(s) {
   return Math.abs(h);
 }
 
-function buildPool(customExercises, disabledBuiltins, equipmentFilter) {
+const RECENT_WINDOW_DAYS = 30;
+
+function buildPool(customExercises, disabledBuiltins, equipmentFilter, history = []) {
   const all = [...BUILTIN_EXERCISES, ...customExercises];
-  const filtered = all.filter((e) => {
+
+  // Step 1: filter by equipment + disabled builtins
+  const eligible = all.filter((e) => {
     if (disabledBuiltins.includes(e.name)) return false;
     const eq = e.equipment || ['bodyweight'];
     return eq.some((tag) => equipmentFilter.includes(tag));
   });
-  if (filtered.length) return filtered;
-  // Safety fallback
-  return BUILTIN_EXERCISES.filter((e) => (e.equipment || []).includes('bodyweight'));
+
+  if (!eligible.length) {
+    // Total fallback: nothing matches equipment, return bodyweight builtins
+    return BUILTIN_EXERCISES.filter((e) => (e.equipment || []).includes('bodyweight'));
+  }
+
+  // Step 2: figure out which exercises were used in the last 30 days
+  const now = new Date(TODAY() + 'T00:00:00');
+  const recentlyUsedNames = new Set();
+  for (const h of history) {
+    if (!h.completed || !h.exercise) continue;
+    const entryDate = new Date(h.date + 'T00:00:00');
+    const daysAgo = Math.round((now - entryDate) / 86400000);
+    if (daysAgo >= 0 && daysAgo < RECENT_WINDOW_DAYS) {
+      recentlyUsedNames.add(h.exercise);
+    }
+  }
+
+  // Step 3: prefer exercises NOT used recently
+  const fresh = eligible.filter((e) => !recentlyUsedNames.has(e.name));
+  if (fresh.length) return fresh;
+
+  // Step 4: All eligible exercises have been used recently. Fall back
+  // to the eligible pool, but sorted by "least recently used" first so
+  // we still rotate variety even when the pool is exhausted.
+  const lastUsedDate = (name) => {
+    for (const h of history) {
+      if (h.completed && h.exercise === name) return h.date;
+    }
+    return null;
+  };
+  return [...eligible].sort((a, b) => {
+    const aDate = lastUsedDate(a.name);
+    const bDate = lastUsedDate(b.name);
+    if (!aDate) return -1;
+    if (!bDate) return 1;
+    return aDate.localeCompare(bDate); // earliest date first
+  });
 }
 
 function daysBetween(a, b) {
@@ -488,7 +527,7 @@ export default function DailyHundred() {
       equipment: state.equipment,
       completed: true,
     };
-    next.history = [entry, ...state.history.filter((h) => h.date !== TODAY())].slice(0, 30);
+    next.history = [entry, ...state.history.filter((h) => h.date !== TODAY())].slice(0, 60);
     setJustFinished(true);
     // Haptic buzz on mobile when supported
     try {
@@ -543,9 +582,10 @@ export default function DailyHundred() {
   function swap() {
     if (!state || totalReps > 0) return;
     if (state.swapIndex >= 2) return;
-    const pool = buildPool(state.customExercises, state.disabledBuiltins, state.equipment);
+    const pool = buildPool(state.customExercises, state.disabledBuiltins, state.equipment, state.history);
+    // If today's current exercise is in pool, advance past it; otherwise start at 0
     const currentIdx = pool.findIndex((e) => e.name === state.todayExercise?.name);
-    const nextIdx = ((currentIdx < 0 ? 0 : currentIdx) + 1) % pool.length;
+    const nextIdx = ((currentIdx < 0 ? -1 : currentIdx) + 1) % pool.length;
     setState({ ...state, todayExercise: pool[nextIdx], swapIndex: state.swapIndex + 1 });
   }
 
@@ -667,7 +707,7 @@ export default function DailyHundred() {
 
   function startSession() {
     if (!pendingEquipment.length) return;
-    const pool = buildPool(state.customExercises, state.disabledBuiltins, pendingEquipment);
+    const pool = buildPool(state.customExercises, state.disabledBuiltins, pendingEquipment, state.history);
     if (!pool.length) return;
     const picked = pool[hashStr(TODAY() + pendingEquipment.join('-')) % pool.length];
     setState({
@@ -891,7 +931,7 @@ export default function DailyHundred() {
 
   // ---------------- HOME SCREEN ----------------
   if (!state.sessionStarted) {
-    const previewPool = buildPool(state.customExercises, state.disabledBuiltins, pendingEquipment);
+    const previewPool = buildPool(state.customExercises, state.disabledBuiltins, pendingEquipment, state.history);
     const canStart = pendingEquipment.length > 0 && previewPool.length > 0;
 
     return (
