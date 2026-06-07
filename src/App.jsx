@@ -193,6 +193,7 @@ const DEFAULT_STATE = {
   squads: [],           // [{ id, name, memberIds, dailyGoal }]
   // Workout session
   sessionStarted: false,
+  workoutStarted: false,
   target: 100,
   equipment: ['bodyweight'],
   reps: 0,
@@ -338,6 +339,96 @@ function Fireworks() {
   );
 }
 
+function LightningBolts() {
+  const [flashes, setFlashes] = useState([]);
+  useEffect(() => {
+    let mounted = true;
+    const timings = [200, 700, 1300, 2100]; // staggered strikes
+    timings.forEach((t) => {
+      setTimeout(() => {
+        if (!mounted) return;
+        const id = Math.random();
+        const x = 15 + Math.random() * 70; // % from left
+        const rotation = -8 + Math.random() * 16; // slight tilt
+        setFlashes((f) => [...f, { id, x, rotation }]);
+        // remove after animation finishes
+        setTimeout(() => {
+          if (mounted) setFlashes((f) => f.filter((b) => b.id !== id));
+        }, 700);
+      }, t);
+    });
+    return () => { mounted = false; };
+  }, []);
+
+  return (
+    <div
+      style={{
+        position: 'fixed',
+        inset: 0,
+        pointerEvents: 'none',
+        zIndex: 98,
+        overflow: 'hidden',
+      }}
+    >
+      {flashes.map((b) => (
+        <div
+          key={b.id}
+          style={{
+            position: 'absolute',
+            top: '-5%',
+            left: `${b.x}%`,
+            width: 8,
+            height: '110%',
+            transform: `rotate(${b.rotation}deg)`,
+            transformOrigin: 'top center',
+            animation: 'boltFlash 0.5s ease-out forwards',
+          }}
+        >
+          <svg
+            viewBox="0 0 20 600"
+            width="40"
+            height="100%"
+            style={{
+              position: 'absolute',
+              top: 0,
+              left: -16,
+              filter: 'drop-shadow(0 0 12px rgba(255,235,120,0.9)) drop-shadow(0 0 30px rgba(255,210,80,0.7))',
+            }}
+          >
+            <path
+              d="M 12 0 L 4 220 L 14 230 L 6 420 L 16 430 L 8 600"
+              stroke="#fff"
+              strokeWidth="3"
+              fill="none"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+            <path
+              d="M 12 0 L 4 220 L 14 230 L 6 420 L 16 430 L 8 600"
+              stroke="#ffe066"
+              strokeWidth="1.2"
+              fill="none"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+        </div>
+      ))}
+      {/* white flash overlay - tied to bolt presence */}
+      {flashes.length > 0 && (
+        <div
+          style={{
+            position: 'absolute',
+            inset: 0,
+            background: 'rgba(255, 240, 180, 0.18)',
+            animation: 'whiteFlash 0.2s ease-out',
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
 export default function DailyHundred() {
   const [state, setState] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -345,6 +436,7 @@ export default function DailyHundred() {
   const [tab, setTab] = useState('log');
   const [showSchemes, setShowSchemes] = useState(false);
   const [justFinished, setJustFinished] = useState(false);
+  const [countdown, setCountdown] = useState(null); // 10..1, 'GO', or null when inactive
 
   // Home-page pending selections (not persisted until START)
   const [pendingTarget, setPendingTarget] = useState(100);
@@ -407,6 +499,7 @@ export default function DailyHundred() {
         saved.swapIndex = 0;
         saved.todayExercise = null;
         saved.sessionStarted = false; // back to home each day
+        saved.workoutStarted = false;
       }
 
       setState(saved);
@@ -471,6 +564,12 @@ export default function DailyHundred() {
     };
     next.history = [entry, ...state.history.filter((h) => h.date !== TODAY())].slice(0, 30);
     setJustFinished(true);
+    // Haptic buzz on mobile when supported
+    try {
+      if (typeof navigator !== 'undefined' && navigator.vibrate) {
+        navigator.vibrate([60, 50, 60, 50, 200]);
+      }
+    } catch {}
     setTimeout(() => setJustFinished(false), 4000);
     return next;
   }
@@ -631,6 +730,7 @@ export default function DailyHundred() {
       target: pendingTarget,
       equipment: pendingEquipment,
       sessionStarted: true,
+      workoutStarted: false,
       reps: 0,
       setsDone: [],
       schemeId: 'free',
@@ -639,13 +739,55 @@ export default function DailyHundred() {
     });
   }
 
+  function beginWorkout() {
+    setCountdown(10);
+    try {
+      if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(30);
+    } catch {}
+  }
+
+  function skipCountdown() {
+    setCountdown(null);
+    setState((prev) => ({ ...prev, workoutStarted: true }));
+  }
+
+  // Tick the countdown
+  useEffect(() => {
+    if (countdown === null) return;
+    if (countdown === 'GO') {
+      const t = setTimeout(() => {
+        setCountdown(null);
+        setState((prev) => ({ ...prev, workoutStarted: true }));
+      }, 700);
+      return () => clearTimeout(t);
+    }
+    const t = setTimeout(() => {
+      if (countdown === 1) {
+        setCountdown('GO');
+        try {
+          if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate([100, 50, 200]);
+        } catch {}
+      } else {
+        setCountdown(countdown - 1);
+        // Longer buzz for last 3 seconds
+        try {
+          if (typeof navigator !== 'undefined' && navigator.vibrate) {
+            navigator.vibrate(countdown <= 4 ? 60 : 25);
+          }
+        } catch {}
+      }
+    }, 1000);
+    return () => clearTimeout(t);
+  }, [countdown]);
+
   function changeWorkout() {
     if (totalReps > 0 && !done) {
       if (!window.confirm('Discard current progress and pick a new workout?')) return;
     }
+    setCountdown(null);
     setPendingTarget(state.target);
     setPendingEquipment(state.equipment);
-    setState({ ...state, sessionStarted: false, reps: 0, setsDone: [] });
+    setState({ ...state, sessionStarted: false, workoutStarted: false, reps: 0, setsDone: [] });
   }
 
   function togglePendingEquipment(id) {
@@ -831,13 +973,8 @@ export default function DailyHundred() {
 
           <div style={styles.divider} />
 
-          <div style={styles.homeIntro}>
-            <h1 style={styles.homeTitle}>GET READY<br />TO SWEAT</h1>
-          </div>
-
           {/* Target picker */}
           <div style={styles.section}>
-            <div style={styles.dailyGoalLine}>Daily goal is 100 reps</div>
             <button
               style={{
                 ...styles.targetBtn,
@@ -917,7 +1054,7 @@ export default function DailyHundred() {
             onClick={() => canStart && startSession()}
             disabled={!canStart}
           >
-            START →
+            NEXT →
           </button>
 
           <div style={styles.footer}>
@@ -938,7 +1075,7 @@ export default function DailyHundred() {
   return (
     <div style={styles.shell}>
       <style>{cssText}</style>
-      <div style={styles.frame}>
+      <div style={{ ...styles.frame, animation: justFinished ? 'screenShake 0.6s cubic-bezier(.36,.07,.19,.97) 0.15s both' : 'none' }}>
         <div style={styles.headerRow}>
           <div>
             <div
@@ -948,7 +1085,11 @@ export default function DailyHundred() {
               {state.adminMode ? '▪ ' : ''}DAILY 100 · {dateLabel.toUpperCase()}
             </div>
             <div style={styles.streakLine}>
-              <span style={styles.streakNum}>{state.streak}</span>
+              <span style={{
+                ...styles.streakNum,
+                animation: justFinished ? 'streakPulse 1.4s cubic-bezier(.36,.07,.19,.97) 0.4s 1' : 'none',
+                display: 'inline-block',
+              }}>{state.streak}</span>
               <span style={styles.streakLabel}>
                 DAY{state.streak === 1 ? '' : 'S'}<br />STREAK
               </span>
@@ -1048,6 +1189,23 @@ export default function DailyHundred() {
               <div style={styles.doneSub}>See you tomorrow.</div>
               <button style={styles.ghostBtn} onClick={reset}>RESET TODAY</button>
             </div>
+          ) : !state.workoutStarted ? (
+            <>
+              <button
+                style={{ ...styles.startBtn, marginBottom: 12 }}
+                onClick={beginWorkout}
+              >START →</button>
+              <div style={styles.secondaryRow}>
+                <button style={styles.ghostBtn} onClick={reset} disabled={true}>RESET</button>
+                <button
+                  style={styles.ghostBtn}
+                  onClick={swap}
+                  disabled={state.swapIndex >= 2}
+                >
+                  SWAP MOVE {state.swapIndex < 2 ? `(${2 - state.swapIndex} LEFT)` : '(0 LEFT)'}
+                </button>
+              </div>
+            </>
           ) : scheme.sets ? (
             <>
               <div
@@ -1062,6 +1220,10 @@ export default function DailyHundred() {
                 {scheme.sets.map((reps, i) => {
                   const completed = !!state.setsDone[i];
                   const nextToDo = !completed && state.setsDone.slice(0, i).every(Boolean);
+                  // Scale font with tile size — fewer tiles = bigger tiles = bigger number
+                  const setCount = scheme.sets.length;
+                  const numFontSize = setCount <= 2 ? 56 : setCount <= 4 ? 36 : setCount <= 6 ? 28 : 22;
+                  const labelFontSize = setCount <= 2 ? 11 : setCount <= 4 ? 10 : 8;
                   return (
                     <button
                       key={i}
@@ -1074,8 +1236,8 @@ export default function DailyHundred() {
                         boxShadow: completed ? '0 3px 10px rgba(232,68,47,0.3)' : nextToDo ? '0 2px 8px rgba(0,0,0,0.08)' : 'none',
                       }}
                     >
-                      <div style={styles.setTileNum}>{reps}</div>
-                      <div style={styles.setTileLabel}>{completed ? '✓ DONE' : `SET ${i + 1}`}</div>
+                      <div style={{ ...styles.setTileNum, fontSize: numFontSize }}>{reps}</div>
+                      <div style={{ ...styles.setTileLabel, fontSize: labelFontSize }}>{completed ? '✓ DONE' : `SET ${i + 1}`}</div>
                     </button>
                   );
                 })}
@@ -1119,9 +1281,25 @@ export default function DailyHundred() {
         </div>
       </div>
 
+      {countdown !== null && (
+        <div style={styles.countdownOverlay} onClick={skipCountdown}>
+          <div
+            key={String(countdown)}
+            style={{
+              ...styles.countdownNumber,
+              ...(countdown === 'GO' ? styles.countdownGo : {}),
+            }}
+          >
+            {countdown === 'GO' ? 'GO!' : countdown}
+          </div>
+          <div style={styles.countdownHint}>tap to skip</div>
+        </div>
+      )}
+
       {justFinished && (
         <>
           <Fireworks />
+          <LightningBolts />
           <div style={styles.flash}>
             <div style={styles.flashInner}>
               <div style={styles.flashDidIt}>YOU DID IT!</div>
@@ -1688,6 +1866,46 @@ const cssText = `
 @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 @keyframes pulse { 0%, 100% { opacity: 0.4; transform: scale(0.85); } 50% { opacity: 1; transform: scale(1.1); } }
+@keyframes screenShake {
+  0%, 100% { transform: translate3d(0, 0, 0); }
+  10% { transform: translate3d(-8px, 2px, 0); }
+  20% { transform: translate3d(7px, -3px, 0); }
+  30% { transform: translate3d(-6px, 4px, 0); }
+  40% { transform: translate3d(5px, -2px, 0); }
+  50% { transform: translate3d(-4px, 3px, 0); }
+  60% { transform: translate3d(3px, -2px, 0); }
+  70% { transform: translate3d(-2px, 1px, 0); }
+  80% { transform: translate3d(2px, -1px, 0); }
+  90% { transform: translate3d(-1px, 0, 0); }
+}
+@keyframes boltFlash {
+  0% { opacity: 0; transform: rotate(var(--rot, 0deg)) scaleY(0.2); }
+  10% { opacity: 1; transform: rotate(var(--rot, 0deg)) scaleY(1); }
+  40% { opacity: 1; }
+  100% { opacity: 0; transform: rotate(var(--rot, 0deg)) scaleY(1); }
+}
+@keyframes whiteFlash {
+  0% { opacity: 0; }
+  30% { opacity: 1; }
+  100% { opacity: 0; }
+}
+@keyframes streakPulse {
+  0% { transform: scale(1); }
+  30% { transform: scale(1.6); color: #ffd700; }
+  100% { transform: scale(1); }
+}
+@keyframes countdownTick {
+  0% { opacity: 0; transform: scale(1.8); }
+  15% { opacity: 1; transform: scale(1); }
+  85% { opacity: 1; transform: scale(0.95); }
+  100% { opacity: 0; transform: scale(0.6); }
+}
+@keyframes countdownGoIn {
+  0% { opacity: 0; transform: scale(0.4) rotate(-6deg); }
+  40% { opacity: 1; transform: scale(1.2) rotate(2deg); }
+  70% { transform: scale(1) rotate(0); }
+  100% { opacity: 1; transform: scale(1) rotate(0); }
+}
 button { transition: transform 0.08s ease, box-shadow 0.15s ease, background 0.15s ease, opacity 0.15s ease; }
 button:active { transform: scale(0.98); }
 button:disabled { cursor: not-allowed; }
@@ -1720,7 +1938,7 @@ const styles = {
   section: { marginBottom: 30 },
   sectionLabel: { fontFamily: "'JetBrains Mono', monospace", fontSize: 10, letterSpacing: 1.8, fontWeight: 700, color: '#8a8178', marginBottom: 13 },
   targetRow: { display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10 },
-  dailyGoalLine: { fontFamily: "'Archivo Black', sans-serif", fontSize: 18, letterSpacing: -0.3, color: '#1a1a1a', marginBottom: 16, textAlign: 'center' },
+  dailyGoalLine: { fontFamily: "'Archivo Black', sans-serif", fontSize: 28, lineHeight: 1.05, letterSpacing: -0.6, color: '#1a1a1a', marginBottom: 20, marginTop: 8, textAlign: 'center' },
   primaryTargetBtn: { width: '100%', aspectRatio: 'auto', padding: '26px 0', marginBottom: 26 },
   scaledHeader: { fontFamily: "'JetBrains Mono', monospace", fontSize: 10, letterSpacing: 1.8, fontWeight: 700, color: '#8a8178', marginBottom: 12, textAlign: 'center' },
   scaledRow: { display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 10, maxWidth: '78%', margin: '0 auto' },
@@ -1787,6 +2005,10 @@ const styles = {
   footer: { display: 'flex', justifyContent: 'space-between', fontFamily: "'JetBrains Mono', monospace", fontSize: 9, letterSpacing: 1.5, color: '#8a8178', fontWeight: 700, paddingTop: 14, borderTop: '1px solid #e0d6c8' },
 
   flash: { position: 'fixed', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none', zIndex: 100 },
+  countdownOverlay: { position: 'fixed', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: 'rgba(15, 12, 10, 0.85)', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)', zIndex: 95, cursor: 'pointer', animation: 'fadeIn 0.2s ease' },
+  countdownNumber: { fontFamily: "'Archivo Black', sans-serif", fontSize: 220, lineHeight: 1, color: '#fff', textShadow: '0 0 40px rgba(232,68,47,0.6), 0 0 80px rgba(232,68,47,0.3)', letterSpacing: -8, animation: 'countdownTick 1s ease-out forwards' },
+  countdownGo: { fontSize: 140, background: 'linear-gradient(135deg, #ffd700 0%, #f25138 50%, #e8442f 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text', textShadow: 'none', letterSpacing: -4, animation: 'countdownGoIn 0.7s cubic-bezier(.36,.07,.19,.97) forwards' },
+  countdownHint: { position: 'absolute', bottom: 60, fontFamily: "'JetBrains Mono', monospace", fontSize: 11, letterSpacing: 2, color: 'rgba(255,255,255,0.5)', fontWeight: 700, textTransform: 'uppercase' },
   flashInner: { background: 'linear-gradient(135deg, #f25138 0%, #e8442f 100%)', color: '#fff', padding: '40px 54px', border: 'none', boxShadow: '0 20px 50px rgba(232,68,47,0.45)', textAlign: 'center', animation: 'flashIn 4s ease-out forwards', position: 'relative', zIndex: 1, borderRadius: 24 },
   flashDidIt: { fontFamily: "'Archivo Black', sans-serif", fontSize: 36, lineHeight: 1, letterSpacing: -0.5, marginBottom: 12 },
   flashBig: { fontFamily: "'Archivo Black', sans-serif", fontSize: 88, lineHeight: 0.9 },
