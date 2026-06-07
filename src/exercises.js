@@ -30,7 +30,7 @@
 export const BUILTIN_EXERCISES = [
   // ---- Bodyweight ----
   { name: 'PUSH-UPS', tip: 'Keep core tight. Drop to knees if form breaks.', equipment: ['bodyweight'] },
-  { name: 'BODYWEIGHT AIR SQUATS', tip: 'Knees track over toes. Sit back into hips.', equipment: ['bodyweight'] },
+  { name: 'AIR SQUATS', tip: 'Knees track over toes. Sit back into hips.', equipment: ['bodyweight'] },
   { name: 'JUMPING JACKS', tip: 'Stay light on the balls of your feet.', equipment: ['bodyweight'] },
   { name: 'SIT-UPS', tip: 'Hands behind ears, lead with chest, not neck.', equipment: ['bodyweight'] },
   { name: 'CRUNCHES', tip: 'Lift shoulder blades. Lower back stays planted.', equipment: ['bodyweight'] },
