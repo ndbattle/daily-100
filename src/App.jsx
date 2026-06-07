@@ -1063,7 +1063,7 @@ export default function DailyHundred() {
           </button>
 
           <div style={styles.footer}>
-            <span>NO ZERO DAYS.</span>
+            <span>KEEP YOUR STREAK ALIVE.</span>
             <span>IT'S YOUR MOVE.</span>
           </div>
         </div>
