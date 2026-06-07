@@ -48,6 +48,7 @@ const BUILTIN_EXERCISES = [
   { name: 'DUMBBELL FLOOR PRESS', tip: 'Elbows touch floor, then drive up.', equipment: ['dumbbell'] },
   { name: 'DUMBBELL DEADLIFTS', tip: 'Hinge at hips. Back stays flat.', equipment: ['dumbbell'] },
   { name: 'RENEGADE ROWS', tip: 'Plank position. Each side = 1 rep.', equipment: ['dumbbell'] },
+  { name: 'ZOTTMAN CURLS', tip: 'Curl up. Twist hands at top snd bring palms to down', equipment: ['dumbbell'] },
   { name: 'DUMBBELL PULLOVERS', tip: 'Lying down. Stretch overhead, pull to chest.', equipment: ['dumbbell'] },
 
   // ---- Kettlebell ----
