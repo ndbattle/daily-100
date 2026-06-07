@@ -1347,6 +1347,10 @@ export default function DailyHundred() {
                 onClick={() => setTab('log')}
               >LOG</button>
               <button
+                style={{ ...styles.tab, ...(tab === 'history' ? styles.tabActive : {}) }}
+                onClick={() => setTab('history')}
+              >HISTORY</button>
+              <button
                 style={{ ...styles.tab, ...(tab === 'friends' ? styles.tabActive : {}) }}
                 onClick={() => setTab('friends')}
               >
@@ -1432,31 +1436,6 @@ export default function DailyHundred() {
               })()}
 
               <div style={styles.sectionHeader}>
-                <span>HISTORY</span>
-              </div>
-              <div style={styles.historyList}>
-                {state.history.length === 0 && (
-                  <div style={styles.emptyHistory}>Finish today to start your log.</div>
-                )}
-                {state.history.map((h) => (
-                  <div key={h.date} style={styles.historyRow}>
-                    <div style={styles.historyDate}>
-                      {new Date(h.date + 'T00:00:00').toLocaleDateString(undefined, {
-                        month: 'short', day: 'numeric',
-                      })}
-                    </div>
-                    <div>
-                      <div style={styles.historyEx}>{h.exercise}</div>
-                      <div style={styles.historyScheme}>
-                        {h.scheme}{h.equipment ? ` · ${h.equipment.join(' / ')}` : ''}
-                      </div>
-                    </div>
-                    <div style={styles.historyReps}>{h.reps}</div>
-                  </div>
-                ))}
-              </div>
-
-              <div style={styles.sectionHeader}>
                 <span>APPEARANCE</span>
               </div>
               <div style={styles.themeRow}>
@@ -1498,6 +1477,40 @@ export default function DailyHundred() {
                   >RESET STREAK</button>
                   <button style={styles.ghostBtn} onClick={signOut}>SIGN OUT</button>
                 </div>
+              </div>
+            </>
+          )}
+
+          {tab === 'history' && (
+            <>
+              <div style={styles.historyHeader}>
+                <div style={styles.historyTitle}>EXERCISE HISTORY</div>
+                <div style={styles.historySubtitle}>
+                  {state.history.length === 0
+                    ? 'No completed workouts yet'
+                    : `${state.history.length} completed workout${state.history.length === 1 ? '' : 's'}`}
+                </div>
+              </div>
+              <div style={styles.historyList}>
+                {state.history.length === 0 && (
+                  <div style={styles.emptyHistory}>Finish today to start your log.</div>
+                )}
+                {state.history.map((h) => (
+                  <div key={h.date} style={styles.historyRow}>
+                    <div style={styles.historyDate}>
+                      {new Date(h.date + 'T00:00:00').toLocaleDateString(undefined, {
+                        month: 'short', day: 'numeric',
+                      })}
+                    </div>
+                    <div>
+                      <div style={styles.historyEx}>{h.exercise}</div>
+                      <div style={styles.historyScheme}>
+                        {h.scheme}{h.equipment ? ` · ${h.equipment.join(' / ')}` : ''}
+                      </div>
+                    </div>
+                    <div style={styles.historyReps}>{h.reps}</div>
+                  </div>
+                ))}
               </div>
             </>
           )}
