@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { SpeedInsights } from '@vercel/speed-insights/react';
 import { BUILTIN_EXERCISES } from './exercises';
 
 const EQUIPMENT_OPTIONS = [
@@ -921,6 +922,7 @@ export default function DailyHundred() {
             </div>
           )}
         </div>
+      <SpeedInsights />
       </div>
     );
   }
@@ -1049,6 +1051,7 @@ export default function DailyHundred() {
         </div>
 
         {showSheet && renderSheet()}
+      <SpeedInsights />
       </div>
     );
   }
@@ -1841,6 +1844,7 @@ export default function DailyHundred() {
             </>
           )}
         </div>
+      <SpeedInsights />
       </div>
     );
   }
