@@ -2149,14 +2149,15 @@ const styles = {
   footer: { display: 'flex', justifyContent: 'space-between', fontFamily: "'JetBrains Mono', monospace", fontSize: 9, letterSpacing: 1.5, color: 'var(--text-muted)', fontWeight: 700, paddingTop: 14, borderTop: '1px solid var(--border)' },
 
   flash: { position: 'fixed', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none', zIndex: 100 },
+  flashBg: { position: 'fixed', inset: 0, background: 'var(--accent-gradient)', pointerEvents: 'none', zIndex: 94, animation: 'flashBgIn 4s ease-out forwards' },
   countdownOverlay: { position: 'fixed', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: 'var(--countdown-overlay)', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)', zIndex: 95, cursor: 'pointer', animation: 'fadeIn 0.2s ease' },
   countdownNumber: { fontFamily: "'Archivo Black', sans-serif", fontSize: 220, lineHeight: 1, color: 'var(--surface)', textShadow: '0 0 40px rgba(232,68,47,0.6), 0 0 80px var(--accent-shadow-md)', letterSpacing: -8, animation: 'countdownTick 1s ease-out forwards' },
   countdownGo: { fontSize: 140, background: 'linear-gradient(135deg, #ffd700 0%, var(--accent-light) 50%, var(--accent) 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text', textShadow: 'none', letterSpacing: -4, animation: 'countdownGoIn 0.7s cubic-bezier(.36,.07,.19,.97) forwards' },
   countdownHint: { position: 'absolute', bottom: 60, fontFamily: "'JetBrains Mono', monospace", fontSize: 11, letterSpacing: 2, color: 'rgba(255,255,255,0.5)', fontWeight: 700, textTransform: 'uppercase' },
-  flashInner: { background: 'var(--accent-gradient)', color: 'var(--surface)', padding: '40px 54px', border: 'none', boxShadow: '0 20px 50px var(--accent-shadow-lg)', textAlign: 'center', animation: 'flashIn 4s ease-out forwards', position: 'relative', zIndex: 1, borderRadius: 24 },
-  flashDidIt: { fontFamily: "'Archivo Black', sans-serif", fontSize: 36, lineHeight: 1, letterSpacing: -0.5, marginBottom: 12 },
-  flashBig: { fontFamily: "'Archivo Black', sans-serif", fontSize: 88, lineHeight: 0.9 },
-  flashSub: { fontFamily: "'JetBrains Mono', monospace", fontSize: 14, letterSpacing: 3, fontWeight: 700, marginTop: 8 },
+  flashInner: { color: '#fff', padding: '40px 30px', textAlign: 'center', animation: 'flashIn 4s ease-out forwards', textShadow: '0 4px 24px rgba(0,0,0,0.25)' },
+  flashDidIt: { fontFamily: "'Archivo Black', sans-serif", fontSize: 56, lineHeight: 1, letterSpacing: -1, marginBottom: 18 },
+  flashBig: { fontFamily: "'Archivo Black', sans-serif", fontSize: 200, lineHeight: 0.85, letterSpacing: -6 },
+  flashSub: { fontFamily: "'JetBrains Mono', monospace", fontSize: 22, letterSpacing: 5, fontWeight: 700, marginTop: 16 },
 
   // Sheet
   sheetOverlay: { position: 'fixed', inset: 0, background: 'var(--overlay)', display: 'flex', alignItems: 'flex-end', justifyContent: 'center', zIndex: 50, animation: 'fadeIn 0.2s ease' },
