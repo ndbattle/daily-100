@@ -41,7 +41,15 @@ const SCHEMES_BY_TARGET = {
   ],
 };
 
-const TODAY = () => new Date().toISOString().slice(0, 10);
+const TODAY = () => {
+  // Use the user's LOCAL time zone, not UTC. This means the streak
+  // deadline is midnight in the user's actual time zone.
+  const d = new Date();
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
 
 function videoUrlFor(exercise) {
   if (exercise?.videoUrl) return exercise.videoUrl;
@@ -2195,6 +2203,9 @@ const styles = {
   statNum: { fontFamily: "'Archivo Black', sans-serif", fontSize: 30, lineHeight: 1, color: 'var(--accent)', textAlign: 'center' },
   statLabel: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, letterSpacing: 1.2, fontWeight: 700, color: 'var(--text-muted)', marginTop: 5, textAlign: 'center' },
   historyList: { display: 'flex', flexDirection: 'column', gap: 2 },
+  historyHeader: { marginBottom: 16, paddingBottom: 12, borderBottom: '1.5px solid var(--border)' },
+  historyTitle: { fontFamily: "'Archivo Black', sans-serif", fontSize: 22, color: 'var(--text)', letterSpacing: -0.3 },
+  historySubtitle: { fontFamily: "'JetBrains Mono', monospace", fontSize: 10, letterSpacing: 1.5, color: 'var(--text-muted)', fontWeight: 700, marginTop: 5 },
   historyRow: { display: 'grid', gridTemplateColumns: '70px 1fr 50px', alignItems: 'center', padding: '12px 0', borderBottom: '1px solid var(--border-soft)', fontSize: 13 },
   historyDate: { fontFamily: "'JetBrains Mono', monospace", fontWeight: 700, fontSize: 11, color: 'var(--text-muted)', letterSpacing: 1 },
   historyEx: { fontWeight: 600, fontSize: 13 },
