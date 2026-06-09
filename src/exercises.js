@@ -128,9 +128,9 @@ export const BUILTIN_EXERCISES = [
 export const WARMUP_EXERCISES = [
   { name: 'ARM CIRCLES', tip: 'Slow controlled circles. 10 forward, 10 back.', reps: 20 },
   { name: 'LEG SWINGS', tip: 'Each leg. Forward and side swings. Stay tall.', reps: 20 },
-  { name: 'JUMPING JACKS', tip: 'Light on the feet. Get the blood flowing.', reps: 20 },
-  { name: 'HIGH KNEES', tip: 'Drive knees up to hip height. Quick steps.', reps: 20 },
-  { name: 'BUTT KICKS', tip: 'Heels to glutes. Quick light steps.', reps: 20 },
+  { name: 'JUMPING JACKS', tip: 'Light on the feet. Get the blood flowing.', reps: 30 },
+  { name: 'HIGH KNEES', tip: 'Drive knees up to hip height. Quick steps.', reps: 30 },
+  { name: 'BUTT KICKS', tip: 'Heels to glutes. Quick light steps.', reps: 30 },
   { name: 'WALKING LUNGES', tip: 'Each leg. Step forward, back knee down.', reps: 10 },
   { name: 'INCHWORMS', tip: 'Hands walk out to plank, walk feet up.', reps: 8 },
   { name: 'AIR SQUATS', tip: 'Slow and controlled. Hips back, knees out.', reps: 15 },
@@ -143,4 +143,43 @@ export const WARMUP_EXERCISES = [
   { name: 'BODY SQUATS', tip: 'Pause at bottom 1 sec. Drive up through heels.', reps: 12 },
   // Add your warmup exercises here
 ];
+
+// ============================================================
+// COOLDOWN LIBRARY
+// ============================================================
+// Gentle yoga and meditation stretches shown after a workout.
+// 2 are picked at random. These do NOT count toward the streak.
+//
+// Format:
+//   { name: 'STRETCH NAME', tip: 'How to do it.', duration: '60 seconds' },
+//
+// FIELDS:
+//   - name     : All caps
+//   - tip      : Cues for breath, form, focus
+//   - duration : How long to hold (e.g. '30 seconds', '1 minute',
+//                'each side · 30 sec')
+//
+// As long as there are at least 2 entries, the picker finds 2
+// different ones each time.
+// ============================================================
+
+export const COOLDOWN_EXERCISES = [
+  { name: "CHILD'S POSE", tip: 'Knees wide, forehead to floor. Breathe into your back.', duration: '60 seconds' },
+  { name: 'SEATED FORWARD FOLD', tip: 'Legs extended. Hinge from the hips. Soft knees ok.', duration: '60 seconds' },
+  { name: 'PIGEON POSE', tip: 'One leg forward bent, other extended back. Sink the hips.', duration: 'each side · 45 sec' },
+  { name: 'SUPINE TWIST', tip: 'On your back. Knees fall to one side. Arms wide.', duration: 'each side · 45 sec' },
+  { name: 'COBRA STRETCH', tip: 'Lying face down. Lift chest. Soft elbows. Slow breath.', duration: '45 seconds' },
+  { name: 'BUTTERFLY STRETCH', tip: 'Soles of feet together. Knees fall open. Sit tall.', duration: '60 seconds' },
+  { name: "DOWNWARD DOG", tip: 'Hands and feet down, hips high. Pedal feet gently.', duration: '45 seconds' },
+  { name: 'STANDING FORWARD FOLD', tip: 'Soft knees. Let your head and arms hang heavy.', duration: '60 seconds' },
+  { name: 'SEATED SPINAL TWIST', tip: 'Cross one leg over. Twist gently from the spine.', duration: 'each side · 45 sec' },
+  { name: 'LEGS UP THE WALL', tip: 'Lie on your back, legs straight up against a wall.', duration: '2 minutes' },
+  { name: 'CORPSE POSE', tip: 'Lie flat. Arms relaxed. Eyes closed. Just breathe.', duration: '2 minutes' },
+  { name: 'BOX BREATHING', tip: 'Breathe in 4 sec, hold 4, out 4, hold 4. Repeat.', duration: '2 minutes' },
+  { name: 'NECK STRETCH', tip: 'Ear to shoulder slowly. Hand can gently guide.', duration: 'each side · 30 sec' },
+  { name: 'STANDING QUAD STRETCH', tip: 'Pull foot toward glute. Knees together, hips forward.', duration: 'each side · 30 sec' },
+  { name: 'STANDING CALF STRETCH', tip: 'Step one foot back. Heel down. Press into the calf.', duration: 'each side · 30 sec' },
+  // Add your cooldown exercises here
+];
+
 
