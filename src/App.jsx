@@ -830,10 +830,29 @@ export default function DailyHundred() {
     setCooldownCelebrate(false);
   }
 
+  function completeCooldown() {
+    // Exit cooldown overlay
+    setCooldownActive(false);
+    setCooldownPicks([]);
+    setCooldownDone([]);
+    setCooldownCelebrate(false);
+    // End the workout session — return to home/setup screen
+    setState((prev) => ({
+      ...prev,
+      sessionStarted: false,
+      workoutStarted: false,
+    }));
+    // Pre-fill home picks with what was just used
+    if (state) {
+      setPendingTarget(state.target);
+      setPendingEquipment(state.equipment);
+    }
+  }
+
   // After cooldown celebration shows, auto-return to home after 3.5s
   useEffect(() => {
     if (!cooldownCelebrate) return;
-    const t = setTimeout(() => finishCooldown(), 3500);
+    const t = setTimeout(() => completeCooldown(), 3500);
     return () => clearTimeout(t);
   }, [cooldownCelebrate]);
 
