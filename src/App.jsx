@@ -1698,7 +1698,7 @@ export default function DailyHundred() {
     const activeBuiltinCount = BUILTIN_EXERCISES.length - state.disabledBuiltins.length;
     return (
       <div style={styles.sheetOverlay} onClick={() => setShowSheet(false)}>
-        <div style={styles.sheet} onClick={(e) => e.stopPropagation()}>
+        <div className="sheet-sized" style={styles.sheet} onClick={(e) => e.stopPropagation()}>
           <div style={styles.sheetHeader}>
             <div style={styles.tabs}>
               <button
@@ -2452,6 +2452,9 @@ input { font-family: inherit; transition: border-color 0.15s ease, box-shadow 0.
 input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(232,68,47,0.15); }
 ::-webkit-scrollbar { width: 8px; height: 8px; }
 ::-webkit-scrollbar-thumb { background: var(--scrollbar); border-radius: 4px; }
+@supports (height: 100dvh) {
+  .sheet-sized { min-height: 75dvh !important; max-height: 88dvh !important; }
+}
 `;
 
 const styles = {
@@ -2591,7 +2594,7 @@ const styles = {
 
   // Sheet
   sheetOverlay: { position: 'fixed', inset: 0, background: 'var(--overlay)', display: 'flex', alignItems: 'flex-end', justifyContent: 'center', zIndex: 50, animation: 'fadeIn 0.2s ease' },
-  sheet: { width: '100%', maxWidth: 480, background: 'var(--bg-solid)', border: 'none', padding: '22px 20px', maxHeight: '88vh', overflow: 'auto', animation: 'slideUp 0.3s cubic-bezier(0.16,1,0.3,1)', borderRadius: '24px 24px 0 0', boxShadow: '0 -8px 40px var(--shadow-lg)' },
+  sheet: { width: '100%', maxWidth: 480, background: 'var(--bg-solid)', border: 'none', padding: '22px 20px', minHeight: '75vh', maxHeight: '88vh', overflow: 'auto', animation: 'slideUp 0.3s cubic-bezier(0.16,1,0.3,1)', borderRadius: '24px 24px 0 0', boxShadow: '0 -8px 40px var(--shadow-lg)' },
   sheetHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 22 },
   tabs: { display: 'flex', gap: 4 },
   tab: { fontFamily: "'Archivo Black', sans-serif", fontSize: 15, padding: '7px 13px', background: 'transparent', border: 'none', color: 'var(--text-subtle)', cursor: 'pointer', borderRadius: 10, display: 'inline-flex', alignItems: 'center', gap: 6 },
