@@ -1263,6 +1263,11 @@ export default function DailyHundred() {
         <div style={styles.frame}>
           <div style={styles.headerRow}>
             <div>
+              {state.user?.name && (
+                <div style={styles.welcomeLine}>
+                  Welcome back, {state.user.name.split(' ')[0]}
+                </div>
+              )}
               <div
                 style={{ ...styles.kicker, cursor: 'default', userSelect: 'none' }}
                 onClick={handleKickerTap}
@@ -1392,6 +1397,11 @@ export default function DailyHundred() {
       <div style={{ ...styles.frame, animation: justFinished ? 'screenShake 0.6s cubic-bezier(.36,.07,.19,.97) 0.15s both' : 'none' }}>
         <div style={styles.headerRow}>
           <div>
+            {state.user?.name && (
+              <div style={styles.welcomeLine}>
+                Welcome back, {state.user.name.split(' ')[0]}
+              </div>
+            )}
             <div
               style={{ ...styles.kicker, cursor: 'default', userSelect: 'none' }}
               onClick={handleKickerTap}
@@ -2467,6 +2477,7 @@ const styles = {
   frame: { maxWidth: 480, margin: '0 auto' },
   headerRow: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 18 },
   kicker: { fontFamily: "'JetBrains Mono', monospace", fontSize: 10, letterSpacing: 1.8, color: 'var(--text-muted)', marginBottom: 14, fontWeight: 700 },
+  welcomeLine: { fontFamily: "'Archivo Black', sans-serif", fontSize: 16, letterSpacing: -0.3, color: 'var(--text)', marginBottom: 6, lineHeight: 1.1 },
   streakLine: { display: 'flex', alignItems: 'center', gap: 11 },
   streakNum: { fontFamily: "'Archivo Black', sans-serif", fontSize: 54, lineHeight: 0.85, color: 'var(--accent)' },
   streakLabel: { fontFamily: "'JetBrains Mono', monospace", fontSize: 10, letterSpacing: 1.5, fontWeight: 700, color: 'var(--text)', lineHeight: 1.15 },
