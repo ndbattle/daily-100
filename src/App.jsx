@@ -849,10 +849,10 @@ export default function DailyHundred() {
     }
   }
 
-  // After cooldown celebration shows, auto-return to home after 3.5s
+  // After cooldown celebration shows, auto-return to home after the fade sequence completes
   useEffect(() => {
     if (!cooldownCelebrate) return;
-    const t = setTimeout(() => completeCooldown(), 3500);
+    const t = setTimeout(() => completeCooldown(), 5500);
     return () => clearTimeout(t);
   }, [cooldownCelebrate]);
 
@@ -1197,10 +1197,8 @@ export default function DailyHundred() {
 
         {cooldownCelebrate && (
           <div style={styles.cooldownCelebrate}>
-            <div style={styles.cooldownCelebrateInner}>
-              <div style={styles.cooldownCelebrateTitle}>AMAZING WORK<br />TODAY</div>
-              <div style={styles.cooldownCelebrateSub}>SEE YOU TOMORROW</div>
-            </div>
+            <div style={styles.cooldownCelebrateTitle}>AMAZING WORK<br />TODAY</div>
+            <div style={styles.cooldownCelebrateSub}>SEE YOU<br />TOMORROW</div>
           </div>
         )}
 
@@ -2332,6 +2330,26 @@ html { background: var(--bg-solid); }
   85% { opacity: 1; }
   100% { opacity: 0; }
 }
+@keyframes cooldownBgIn {
+  0% { opacity: 0; }
+  15% { opacity: 1; }
+  90% { opacity: 1; }
+  100% { opacity: 0; }
+}
+@keyframes cooldownTitleFade {
+  0% { opacity: 0; transform: translateY(8px); }
+  12% { opacity: 1; transform: translateY(0); }
+  38% { opacity: 1; transform: translateY(0); }
+  50% { opacity: 0; transform: translateY(-8px); }
+  100% { opacity: 0; transform: translateY(-8px); }
+}
+@keyframes cooldownSubFade {
+  0% { opacity: 0; transform: translateY(8px); }
+  50% { opacity: 0; transform: translateY(8px); }
+  62% { opacity: 1; transform: translateY(0); }
+  88% { opacity: 1; transform: translateY(0); }
+  100% { opacity: 0; transform: translateY(0); }
+}
 button { transition: transform 0.08s ease, box-shadow 0.15s ease, background 0.15s ease, opacity 0.15s ease, color 0.15s ease; }
 button:active { transform: scale(0.98); }
 button:disabled { cursor: not-allowed; }
@@ -2375,11 +2393,10 @@ const styles = {
   warmupTip: { fontFamily: "'Inter', sans-serif", fontSize: 12, lineHeight: 1.4 },
   warmupCheck: { fontFamily: "'JetBrains Mono', monospace", fontSize: 10, letterSpacing: 1.5, fontWeight: 700, textAlign: 'right' },
 
-  // Cooldown completion takeover
-  cooldownCelebrate: { position: 'fixed', inset: 0, background: 'var(--accent-gradient)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200, animation: 'flashBgIn 3.5s ease-out forwards', textAlign: 'center', padding: '40px 28px' },
-  cooldownCelebrateInner: { color: '#fff', animation: 'flashIn 3.5s ease-out forwards', textShadow: '0 4px 24px rgba(0,0,0,0.25)' },
-  cooldownCelebrateTitle: { fontFamily: "'Archivo Black', sans-serif", fontSize: 72, lineHeight: 0.95, letterSpacing: -2.5, marginBottom: 28 },
-  cooldownCelebrateSub: { fontFamily: "'JetBrains Mono', monospace", fontSize: 18, letterSpacing: 4, fontWeight: 700 },
+  // Cooldown completion takeover (gentle, sequential fades)
+  cooldownCelebrate: { position: 'fixed', inset: 0, background: 'var(--accent-gradient)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', zIndex: 200, animation: 'cooldownBgIn 5.5s ease-in-out forwards', textAlign: 'center', padding: '40px 28px' },
+  cooldownCelebrateTitle: { fontFamily: "'Archivo Black', sans-serif", fontSize: 64, lineHeight: 1, letterSpacing: -2, color: '#fff', textShadow: '0 4px 24px rgba(0,0,0,0.18)', animation: 'cooldownTitleFade 5.5s ease-in-out forwards', position: 'absolute' },
+  cooldownCelebrateSub: { fontFamily: "'Archivo Black', sans-serif", fontSize: 56, lineHeight: 1.05, letterSpacing: -1.6, color: '#fff', textShadow: '0 4px 24px rgba(0,0,0,0.18)', animation: 'cooldownSubFade 5.5s ease-in-out forwards', position: 'absolute' },
 
   // Home
   homeIntro: { marginBottom: 30, textAlign: 'center' },
