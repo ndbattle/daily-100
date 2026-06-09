@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { BUILTIN_EXERCISES } from './exercises';
+import { BUILTIN_EXERCISES, WARMUP_EXERCISES } from './exercises';
 
 const EQUIPMENT_OPTIONS = [
   { id: 'bodyweight', label: 'BODYWEIGHT' },
@@ -411,6 +411,9 @@ export default function DailyHundred() {
   const [showSchemes, setShowSchemes] = useState(false);
   const [justFinished, setJustFinished] = useState(false);
   const [countdown, setCountdown] = useState(null); // 10..1, 'GO', or null when inactive
+  const [warmupActive, setWarmupActive] = useState(false);
+  const [warmupPicks, setWarmupPicks] = useState([]);
+  const [warmupDone, setWarmupDone] = useState([]);
 
   // Home-page pending selections (not persisted until START)
   const [pendingTarget, setPendingTarget] = useState(100);
@@ -766,6 +769,27 @@ export default function DailyHundred() {
     });
   }
 
+  function startWarmup() {
+    if (WARMUP_EXERCISES.length < 3) return;
+    const shuffled = [...WARMUP_EXERCISES].sort(() => Math.random() - 0.5);
+    setWarmupPicks(shuffled.slice(0, 3));
+    setWarmupDone([false, false, false]);
+    setWarmupActive(true);
+  }
+
+  function toggleWarmupDone(i) {
+    setWarmupDone((prev) => prev.map((d, idx) => (idx === i ? !d : d)));
+    try {
+      if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(30);
+    } catch {}
+  }
+
+  function finishWarmup() {
+    setWarmupActive(false);
+    setWarmupPicks([]);
+    setWarmupDone([]);
+  }
+
   function beginWorkout() {
     setCountdown(10);
     try {
@@ -971,6 +995,79 @@ export default function DailyHundred() {
     weekday: 'long', month: 'short', day: 'numeric',
   });
 
+  // ---------------- WARMUP SCREEN ----------------
+  if (warmupActive) {
+    const allDone = warmupDone.every(Boolean);
+    return (
+      <div style={styles.shell}>
+        <style>{cssText}</style>
+        <div style={styles.frame}>
+          <div style={styles.headerRow}>
+            <button style={styles.changeLink} onClick={finishWarmup}>← BACK</button>
+            <div style={styles.kicker}>DAILY 100 · {new Date().toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</div>
+            <button style={styles.iconBtn} onClick={() => { setShowSheet(true); setTab('log'); }}>☰</button>
+          </div>
+
+          <div style={styles.divider} />
+
+          <h1 style={styles.warmupTitle}>WARMUP</h1>
+          <div style={styles.warmupSubtitle}>3 movements · about 3 minutes</div>
+          <div style={styles.warmupNote}>Not counted toward your streak.</div>
+
+          <div style={styles.warmupList}>
+            {warmupPicks.map((w, i) => {
+              const done = warmupDone[i];
+              return (
+                <button
+                  key={i}
+                  onClick={() => toggleWarmupDone(i)}
+                  style={{
+                    ...styles.warmupCard,
+                    background: done ? 'var(--accent-gradient)' : 'var(--surface)',
+                    color: done ? '#fff' : 'var(--text)',
+                    borderColor: done ? 'transparent' : 'var(--border)',
+                    boxShadow: done ? '0 4px 14px var(--accent-shadow-md)' : '0 1px 3px var(--shadow-sm)',
+                  }}
+                >
+                  <div style={styles.warmupCardTop}>
+                    <span style={{
+                      ...styles.warmupNumber,
+                      background: done ? 'rgba(255,255,255,0.22)' : 'var(--surface-muted)',
+                      color: done ? '#fff' : 'var(--text-muted)',
+                    }}>{i + 1}</span>
+                    <span style={styles.warmupName}>{w.name}</span>
+                    <span style={styles.warmupReps}>{w.reps}</span>
+                  </div>
+                  <div style={{
+                    ...styles.warmupTip,
+                    color: done ? 'rgba(255,255,255,0.8)' : 'var(--text-muted)',
+                  }}>{w.tip}</div>
+                  <div style={{
+                    ...styles.warmupCheck,
+                    color: done ? '#fff' : 'var(--text-muted)',
+                  }}>{done ? '✓ DONE' : 'TAP WHEN COMPLETE'}</div>
+                </button>
+              );
+            })}
+          </div>
+
+          {allDone && (
+            <button style={styles.startBtn} onClick={finishWarmup}>
+              FINISHED → BACK TO SETUP
+            </button>
+          )}
+
+          <div style={styles.footer}>
+            <span>LOOSEN UP.</span>
+            <span>BREATHE.</span>
+          </div>
+        </div>
+
+        {showSheet && renderSheet()}
+      </div>
+    );
+  }
+
   // ---------------- HOME SCREEN ----------------
   if (!state.sessionStarted) {
     const previewPool = buildPool(state.customExercises, state.disabledBuiltins, pendingEquipment, state.history);
@@ -999,6 +1096,12 @@ export default function DailyHundred() {
           </div>
 
           <div style={styles.divider} />
+
+          {/* Warmup bar */}
+          <button style={styles.warmupBar} onClick={startWarmup}>
+            <span style={styles.warmupQuestion}>Need a quick warmup?</span>
+            <span style={styles.warmupBarBtn}>WARM UP →</span>
+          </button>
 
           {/* Target picker */}
           <div style={styles.section}>
@@ -2095,6 +2198,24 @@ const styles = {
   streakLabel: { fontFamily: "'JetBrains Mono', monospace", fontSize: 10, letterSpacing: 1.5, fontWeight: 700, color: 'var(--text)', lineHeight: 1.15 },
   iconBtn: { width: 42, height: 42, border: '1.5px solid var(--border)', background: 'var(--surface)', fontSize: 18, cursor: 'pointer', fontFamily: "'JetBrains Mono', monospace", color: 'var(--text)', borderRadius: 12, boxShadow: '0 1px 3px var(--shadow-sm)', display: 'flex', alignItems: 'center', justifyContent: 'center' },
   divider: { height: 1, background: 'var(--border)', margin: '4px 0 24px' },
+
+  // Warmup bar (on home screen)
+  warmupBar: { width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '14px 18px', background: 'var(--surface)', border: '1.5px solid var(--border)', borderRadius: 14, marginBottom: 22, cursor: 'pointer', fontFamily: 'inherit', boxShadow: '0 1px 3px var(--shadow-sm)' },
+  warmupQuestion: { fontFamily: "'Inter', sans-serif", fontSize: 14, fontWeight: 600, color: 'var(--text)' },
+  warmupBarBtn: { fontFamily: "'JetBrains Mono', monospace", fontSize: 11, fontWeight: 700, letterSpacing: 1.5, color: 'var(--accent)' },
+
+  // Warmup screen
+  warmupTitle: { fontFamily: "'Archivo Black', sans-serif", fontSize: 42, lineHeight: 0.95, margin: '0 0 6px', letterSpacing: -1.5, color: 'var(--text)' },
+  warmupSubtitle: { fontFamily: "'JetBrains Mono', monospace", fontSize: 11, letterSpacing: 1.5, fontWeight: 700, color: 'var(--text-muted)', marginBottom: 4 },
+  warmupNote: { fontFamily: "'Inter', sans-serif", fontSize: 12, color: 'var(--text-muted)', marginBottom: 24, fontStyle: 'italic' },
+  warmupList: { display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 24 },
+  warmupCard: { width: '100%', textAlign: 'left', border: '1.5px solid var(--border)', borderRadius: 16, padding: '16px 18px', cursor: 'pointer', fontFamily: 'inherit', display: 'flex', flexDirection: 'column', gap: 8 },
+  warmupCardTop: { display: 'flex', alignItems: 'center', gap: 12 },
+  warmupNumber: { width: 28, height: 28, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: "'Archivo Black', sans-serif", fontSize: 13, flexShrink: 0 },
+  warmupName: { fontFamily: "'Archivo Black', sans-serif", fontSize: 16, lineHeight: 1, letterSpacing: -0.2, flex: 1 },
+  warmupReps: { fontFamily: "'JetBrains Mono', monospace", fontSize: 14, fontWeight: 700, letterSpacing: 0.5 },
+  warmupTip: { fontFamily: "'Inter', sans-serif", fontSize: 12, lineHeight: 1.4 },
+  warmupCheck: { fontFamily: "'JetBrains Mono', monospace", fontSize: 10, letterSpacing: 1.5, fontWeight: 700, textAlign: 'right' },
 
   // Home
   homeIntro: { marginBottom: 30, textAlign: 'center' },
