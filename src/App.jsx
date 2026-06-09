@@ -1099,7 +1099,7 @@ export default function DailyHundred() {
 
           {/* Warmup bar */}
           <button style={styles.warmupBar} onClick={startWarmup}>
-            <span style={styles.warmupQuestion}>Need a quick warmup?</span>
+            <span style={styles.warmupQuestion}>Need a quick warmup first?</span>
             <span style={styles.warmupBarBtn}>WARM UP →</span>
           </button>
 
