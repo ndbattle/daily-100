@@ -29,13 +29,13 @@
 
 export const BUILTIN_EXERCISES = [
   // ---- Bodyweight ----
-  { name: 'PUSH-UPS', tip: 'Drop to knees if form breaks. Take breaks to shake out arms.', equipment: ['bodyweight'] },
-  { name: 'AIR SQUATS', tip: 'Knees track over toes. Sit back into hips.', equipment: ['bodyweight'] },
+  { name: 'PUSH-UPS', tip: 'Keep core tight. Drop to knees if form breaks.', equipment: ['bodyweight'] },
+  { name: 'BODYWEIGHT SQUATS', tip: 'Knees track over toes. Sit back into hips.', equipment: ['bodyweight'] },
   { name: 'JUMPING JACKS', tip: 'Stay light on the balls of your feet.', equipment: ['bodyweight'] },
   { name: 'SIT-UPS', tip: 'Hands behind ears, lead with chest, not neck.', equipment: ['bodyweight'] },
-  { name: 'CRUNCHES', tip: 'Let that core burn.', equipment: ['bodyweight'] },
+  { name: 'CRUNCHES', tip: 'Lift shoulder blades. Lower back stays planted.', equipment: ['bodyweight'] },
   { name: 'ALTERNATING LUNGES', tip: 'Count each leg. Back knee toward floor.', equipment: ['bodyweight'] },
-  { name: 'MOUNTAIN CLIMBERS', tip: 'Plank position. Drive knees towards elbows and show some speed.', equipment: ['bodyweight'] },
+  { name: 'MOUNTAIN CLIMBERS', tip: 'Hips low. Drive knees, don\'t bounce.', equipment: ['bodyweight'] },
   { name: 'HIGH KNEES', tip: 'Knees to hip height. Quick, light steps.', equipment: ['bodyweight'] },
   { name: 'GLUTE BRIDGES', tip: 'Squeeze at the top. Pause for 1 second.', equipment: ['bodyweight'] },
   { name: 'CALF RAISES', tip: 'Pause at the top. Full stretch at bottom.', equipment: ['bodyweight'] },
@@ -53,8 +53,6 @@ export const BUILTIN_EXERCISES = [
   { name: 'SKATER JUMPS', tip: 'Side to side. Land soft, sweep back leg.', equipment: ['bodyweight'] },
   { name: 'DONKEY KICKS', tip: 'On all fours. Squeeze glute at the top.', equipment: ['bodyweight'] },
   { name: 'PIKE PUSH-UPS', tip: 'Hips high, head between hands. Shoulder builder.', equipment: ['bodyweight'] },
-  { name: 'STANDING MARCH', tip: 'March in place with arms directly overhead. Could also hold a weight.', equipment: ['bodyweight'] },
-  { name: 'DROP SQUAT', tip: 'Chest up and move fast.', equipment: ['bodyweight'] },
   // Add your bodyweight exercises here
 
   // ---- Dumbbell ----
@@ -70,8 +68,6 @@ export const BUILTIN_EXERCISES = [
   { name: 'DUMBBELL DEADLIFTS', tip: 'Hinge at hips. Back stays flat.', equipment: ['dumbbell'] },
   { name: 'RENEGADE ROWS', tip: 'Plank position. Each side = 1 rep.', equipment: ['dumbbell'] },
   { name: 'DUMBBELL PULLOVERS', tip: 'Lying down. Stretch overhead, pull to chest.', equipment: ['dumbbell'] },
-  { name: 'ZOTTMAN CURLS', tip: 'Lighter dumbbell than you think. This is an arm burn.', equipment: ['dumbbell'] },
-  { name: 'SKULL CRUSHERS', tip: 'Don\'t smash your head.', equipment: ['dumbbell'] },
   // Add your dumbbell exercises here
 
   // ---- Kettlebell ----
@@ -110,3 +106,41 @@ export const BUILTIN_EXERCISES = [
   { name: 'BAND DEADLIFTS', tip: 'Stand on band. Hinge, drive through floor.', equipment: ['band'] },
   // Add your resistance band exercises here
 ];
+
+// ============================================================
+// WARMUP LIBRARY
+// ============================================================
+// Light movements shown before a workout (3 are picked at random).
+// These do NOT count toward the user's streak.
+//
+// Format:
+//   { name: 'WARMUP NAME', tip: 'How to do it.', reps: 20 },
+//
+// FIELDS:
+//   - name : All caps
+//   - tip  : Short form note
+//   - reps : Number of reps for this warmup (varies — usually 10-30)
+//
+// Add or remove freely. As long as there are at least 3 entries,
+// the random picker will find 3 different ones each time.
+// ============================================================
+
+export const WARMUP_EXERCISES = [
+  { name: 'ARM CIRCLES', tip: 'Slow controlled circles. 10 forward, 10 back.', reps: 20 },
+  { name: 'LEG SWINGS', tip: 'Each leg. Forward and side swings. Stay tall.', reps: 20 },
+  { name: 'JUMPING JACKS', tip: 'Light on the feet. Get the blood flowing.', reps: 30 },
+  { name: 'HIGH KNEES', tip: 'Drive knees up to hip height. Quick steps.', reps: 30 },
+  { name: 'BUTT KICKS', tip: 'Heels to glutes. Quick light steps.', reps: 30 },
+  { name: 'WALKING LUNGES', tip: 'Each leg. Step forward, back knee down.', reps: 10 },
+  { name: 'INCHWORMS', tip: 'Hands walk out to plank, walk feet up.', reps: 8 },
+  { name: 'AIR SQUATS', tip: 'Slow and controlled. Hips back, knees out.', reps: 15 },
+  { name: 'HIP CIRCLES', tip: 'Hands on hips, big circles each direction.', reps: 10 },
+  { name: 'SHOULDER ROLLS', tip: 'Big slow circles. Forward then back.', reps: 10 },
+  { name: 'TOE TOUCHES', tip: 'Light bend. Reach for toes, return slow.', reps: 10 },
+  { name: 'CAT-COW STRETCH', tip: 'On all fours. Arch then round the spine.', reps: 10 },
+  { name: 'TORSO TWISTS', tip: 'Arms loose. Twist side to side, hips still.', reps: 20 },
+  { name: 'JUMPING JACKS', tip: 'Light steady pace. Wake everything up.', reps: 25 },
+  { name: 'BODY SQUATS', tip: 'Pause at bottom 1 sec. Drive up through heels.', reps: 12 },
+  // Add your warmup exercises here
+];
+
