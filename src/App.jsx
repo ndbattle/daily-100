@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { BUILTIN_EXERCISES, WARMUP_EXERCISES } from './exercises';
+import { BUILTIN_EXERCISES, WARMUP_EXERCISES, COOLDOWN_EXERCISES } from './exercises';
 
 const EQUIPMENT_OPTIONS = [
   { id: 'bodyweight', label: 'BODYWEIGHT' },
@@ -414,6 +414,9 @@ export default function DailyHundred() {
   const [warmupActive, setWarmupActive] = useState(false);
   const [warmupPicks, setWarmupPicks] = useState([]);
   const [warmupDone, setWarmupDone] = useState([]);
+  const [cooldownActive, setCooldownActive] = useState(false);
+  const [cooldownPicks, setCooldownPicks] = useState([]);
+  const [cooldownDone, setCooldownDone] = useState([]);
 
   // Home-page pending selections (not persisted until START)
   const [pendingTarget, setPendingTarget] = useState(100);
@@ -790,6 +793,27 @@ export default function DailyHundred() {
     setWarmupDone([]);
   }
 
+  function startCooldown() {
+    if (COOLDOWN_EXERCISES.length < 2) return;
+    const shuffled = [...COOLDOWN_EXERCISES].sort(() => Math.random() - 0.5);
+    setCooldownPicks(shuffled.slice(0, 2));
+    setCooldownDone([false, false]);
+    setCooldownActive(true);
+  }
+
+  function toggleCooldownDone(i) {
+    setCooldownDone((prev) => prev.map((d, idx) => (idx === i ? !d : d)));
+    try {
+      if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(30);
+    } catch {}
+  }
+
+  function finishCooldown() {
+    setCooldownActive(false);
+    setCooldownPicks([]);
+    setCooldownDone([]);
+  }
+
   function beginWorkout() {
     setCountdown(10);
     try {
@@ -1053,13 +1077,86 @@ export default function DailyHundred() {
 
           {allDone && (
             <button style={styles.startBtn} onClick={finishWarmup}>
-              FINISHED → BACK TO WORKOUT SELECTION
+              FINISHED → BACK TO SETUP
             </button>
           )}
 
           <div style={styles.footer}>
             <span>LOOSEN UP.</span>
             <span>BREATHE.</span>
+          </div>
+        </div>
+
+        {showSheet && renderSheet()}
+      </div>
+    );
+  }
+
+  // ---------------- COOLDOWN SCREEN ----------------
+  if (cooldownActive) {
+    const allDone = cooldownDone.every(Boolean);
+    return (
+      <div style={styles.shell}>
+        <style>{cssText}</style>
+        <div style={styles.frame}>
+          <div style={styles.headerRow}>
+            <button style={styles.changeLink} onClick={finishCooldown}>← BACK</button>
+            <div style={styles.kicker}>DAILY 100 · {new Date().toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</div>
+            <button style={styles.iconBtn} onClick={() => { setShowSheet(true); setTab('log'); }}>☰</button>
+          </div>
+
+          <div style={styles.divider} />
+
+          <h1 style={styles.warmupTitle}>COOL DOWN</h1>
+          <div style={styles.warmupSubtitle}>2 stretches · breathe slowly</div>
+          <div style={styles.warmupNote}>Not counted toward your streak.</div>
+
+          <div style={styles.warmupList}>
+            {cooldownPicks.map((c, i) => {
+              const done = cooldownDone[i];
+              return (
+                <button
+                  key={i}
+                  onClick={() => toggleCooldownDone(i)}
+                  style={{
+                    ...styles.warmupCard,
+                    background: done ? 'var(--accent-gradient)' : 'var(--surface)',
+                    color: done ? '#fff' : 'var(--text)',
+                    borderColor: done ? 'transparent' : 'var(--border)',
+                    boxShadow: done ? '0 4px 14px var(--accent-shadow-md)' : '0 1px 3px var(--shadow-sm)',
+                  }}
+                >
+                  <div style={styles.warmupCardTop}>
+                    <span style={{
+                      ...styles.warmupNumber,
+                      background: done ? 'rgba(255,255,255,0.22)' : 'var(--surface-muted)',
+                      color: done ? '#fff' : 'var(--text-muted)',
+                    }}>{i + 1}</span>
+                    <span style={styles.warmupName}>{c.name}</span>
+                    <span style={styles.warmupReps}>{c.duration}</span>
+                  </div>
+                  <div style={{
+                    ...styles.warmupTip,
+                    color: done ? 'rgba(255,255,255,0.8)' : 'var(--text-muted)',
+                  }}>{c.tip}</div>
+                  <div style={{
+                    ...styles.warmupCheck,
+                    color: done ? '#fff' : 'var(--text-muted)',
+                  }}>{done ? '✓ DONE' : 'TAP WHEN COMPLETE'}</div>
+                </button>
+              );
+            })}
+          </div>
+
+          {allDone && (
+            <button style={styles.startBtn} onClick={finishCooldown}>
+              FINISHED →
+            </button>
+          )}
+
+          <div style={styles.footer}>
+            <span>SLOW BREATHS.</span>
+            <span>WELL DONE.</span>
           </div>
         </div>
 
@@ -1317,7 +1414,24 @@ export default function DailyHundred() {
             <div style={styles.doneBlock}>
               <div style={styles.doneText}>DONE.</div>
               <div style={styles.doneSub}>See you tomorrow.</div>
-              <button style={styles.ghostBtn} onClick={undoCompletion}>RESET TODAY</button>
+              <button
+                style={{
+                  ...styles.startBtn,
+                  marginBottom: 12,
+                  fontSize: 22,
+                  padding: '20px 0',
+                }}
+                onClick={startCooldown}
+              >COOL DOWN →</button>
+              <button
+                style={{
+                  ...styles.ghostBtn,
+                  fontSize: 13,
+                  padding: '16px 28px',
+                  letterSpacing: 1.8,
+                }}
+                onClick={undoCompletion}
+              >RESET TODAY</button>
             </div>
           ) : !state.workoutStarted ? (
             <>
