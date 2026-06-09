@@ -143,6 +143,15 @@ function daysBetween(a, b) {
   return Math.round((new Date(b) - new Date(a)) / 86400000);
 }
 
+function formatDuration(seconds) {
+  if (seconds == null || seconds < 0) return '';
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  const s = seconds % 60;
+  if (h > 0) return `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+  return `${m}:${String(s).padStart(2, '0')}`;
+}
+
 const SEED_SUGGESTIONS = [
   { id: 'u_jordan',  name: 'Jordan M.',   handle: '@jordanm',  streak: 14 },
   { id: 'u_priya',   name: 'Priya K.',    handle: '@priyak',   streak: 42 },
@@ -167,6 +176,8 @@ const DEFAULT_STATE = {
   // Workout session
   sessionStarted: false,
   workoutStarted: false,
+  useTimer: false,
+  timerStartedAt: null,
   target: 100,
   equipment: ['bodyweight'],
   reps: 0,
@@ -418,6 +429,8 @@ export default function DailyHundred() {
   const [cooldownPicks, setCooldownPicks] = useState([]);
   const [cooldownDone, setCooldownDone] = useState([]);
   const [cooldownCelebrate, setCooldownCelebrate] = useState(false);
+  const [showTimerPrompt, setShowTimerPrompt] = useState(false);
+  const [tickNow, setTickNow] = useState(Date.now());
 
   // Home-page pending selections (not persisted until START)
   const [pendingTarget, setPendingTarget] = useState(100);
@@ -567,6 +580,10 @@ export default function DailyHundred() {
     next.streak = newStreak;
     next.bestStreak = Math.max(state.bestStreak || 0, newStreak);
     next.lastCompletedDate = TODAY();
+    // If timer was running, capture the duration
+    const duration = state.useTimer && state.timerStartedAt
+      ? Math.floor((Date.now() - state.timerStartedAt) / 1000)
+      : null;
     const entry = {
       date: TODAY(),
       exercise: exercise.name,
@@ -575,8 +592,11 @@ export default function DailyHundred() {
       scheme: scheme.label,
       equipment: state.equipment,
       completed: true,
+      duration, // seconds, or null if timer wasn't used
     };
     next.history = [entry, ...state.history.filter((h) => h.date !== TODAY())].slice(0, 60);
+    // Stop the timer
+    next.timerStartedAt = null;
     setJustFinished(true);
     // Haptic buzz on mobile when supported
     try {
@@ -765,6 +785,8 @@ export default function DailyHundred() {
       equipment: pendingEquipment,
       sessionStarted: true,
       workoutStarted: false,
+      useTimer: false,
+      timerStartedAt: null,
       reps: 0,
       setsDone: [],
       schemeId: 'free',
@@ -856,7 +878,22 @@ export default function DailyHundred() {
     return () => clearTimeout(t);
   }, [cooldownCelebrate]);
 
+  // Tick the workout timer once per second when active
+  useEffect(() => {
+    if (!state?.useTimer || !state?.timerStartedAt) return;
+    setTickNow(Date.now());
+    const id = setInterval(() => setTickNow(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, [state?.useTimer, state?.timerStartedAt]);
+
   function beginWorkout() {
+    setShowTimerPrompt(true);
+  }
+
+  function chooseTimer(useIt) {
+    setShowTimerPrompt(false);
+    setState((prev) => ({ ...prev, useTimer: !!useIt, timerStartedAt: null }));
+    // Begin the 10-second countdown
     setCountdown(10);
     try {
       if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(30);
@@ -865,7 +902,11 @@ export default function DailyHundred() {
 
   function skipCountdown() {
     setCountdown(null);
-    setState((prev) => ({ ...prev, workoutStarted: true }));
+    setState((prev) => ({
+      ...prev,
+      workoutStarted: true,
+      timerStartedAt: prev.useTimer ? Date.now() : null,
+    }));
   }
 
   // Tick the countdown
@@ -874,7 +915,11 @@ export default function DailyHundred() {
     if (countdown === 'GO') {
       const t = setTimeout(() => {
         setCountdown(null);
-        setState((prev) => ({ ...prev, workoutStarted: true }));
+        setState((prev) => ({
+          ...prev,
+          workoutStarted: true,
+          timerStartedAt: prev.useTimer ? Date.now() : null,
+        }));
       }, 700);
       return () => clearTimeout(t);
     }
@@ -904,7 +949,7 @@ export default function DailyHundred() {
     setCountdown(null);
     setPendingTarget(state.target);
     setPendingEquipment(state.equipment);
-    setState({ ...state, sessionStarted: false, workoutStarted: false, reps: 0, setsDone: [] });
+    setState({ ...state, sessionStarted: false, workoutStarted: false, useTimer: false, timerStartedAt: null, reps: 0, setsDone: [] });
   }
 
   function togglePendingEquipment(id) {
@@ -1435,6 +1480,15 @@ export default function DailyHundred() {
             </div>
           )}
 
+          {state.useTimer && state.timerStartedAt && (
+            <div style={styles.timerBlock}>
+              <div style={styles.timerLabel}>ELAPSED</div>
+              <div style={styles.timerValue}>
+                {formatDuration(Math.max(0, Math.floor((tickNow - state.timerStartedAt) / 1000)))}
+              </div>
+            </div>
+          )}
+
           <div style={styles.counterTop}>
             <div>
               <div style={styles.repsLabel}>
@@ -1566,6 +1620,25 @@ export default function DailyHundred() {
           <span>YOU'VE GOT THIS.</span>
         </div>
       </div>
+
+      {showTimerPrompt && (
+        <div style={styles.timerPromptOverlay}>
+          <div style={styles.timerPromptCard}>
+            <div style={styles.timerPromptTitle}>TIME THIS WORKOUT?</div>
+            <div style={styles.timerPromptSub}>Track how long it takes you.</div>
+            <div style={styles.timerPromptButtons}>
+              <button
+                style={{ ...styles.ghostBtn, padding: '16px 0', fontSize: 14, letterSpacing: 1.8 }}
+                onClick={() => chooseTimer(false)}
+              >NO</button>
+              <button
+                style={{ ...styles.primaryBtn, padding: '16px 0', fontSize: 14, letterSpacing: 1.8 }}
+                onClick={() => chooseTimer(true)}
+              >YES</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {countdown !== null && (
         <div style={styles.countdownOverlay} onClick={skipCountdown}>
@@ -1772,7 +1845,7 @@ export default function DailyHundred() {
                     <div>
                       <div style={styles.historyEx}>{h.exercise}</div>
                       <div style={styles.historyScheme}>
-                        {h.scheme}{h.equipment ? ` · ${h.equipment.join(' / ')}` : ''}
+                        {h.scheme}{h.equipment ? ` · ${h.equipment.join(' / ')}` : ''}{h.duration != null ? ` · ${formatDuration(h.duration)}` : ''}
                       </div>
                     </div>
                     <div style={styles.historyReps}>{h.reps}</div>
@@ -2433,6 +2506,18 @@ const styles = {
   tip: { fontSize: 14, color: 'var(--dark-card-muted)', lineHeight: 1.5, borderTop: '1px solid var(--dark-card-border)', paddingTop: 14 },
   howToLink: { display: 'inline-block', marginTop: 14, fontFamily: "'JetBrains Mono', monospace", fontSize: 10, letterSpacing: 1.5, fontWeight: 700, color: 'var(--dark-card-accent)', textDecoration: 'none', borderBottom: '1px solid var(--dark-card-accent)', paddingBottom: 2 },
   counterBlock: { background: 'var(--surface)', border: '1.5px solid var(--border)', padding: 22, marginBottom: 16, borderRadius: 20, boxShadow: '0 2px 10px var(--shadow-xs)' },
+
+  // Timer display (workout screen)
+  timerBlock: { textAlign: 'center', padding: '14px 0 16px', marginBottom: 14, borderBottom: '1.5px solid var(--border)' },
+  timerLabel: { fontFamily: "'JetBrains Mono', monospace", fontSize: 10, letterSpacing: 2, color: 'var(--text-muted)', fontWeight: 700, marginBottom: 6 },
+  timerValue: { fontFamily: "'Archivo Black', sans-serif", fontSize: 44, lineHeight: 1, color: 'var(--text)', letterSpacing: -0.5, fontVariantNumeric: 'tabular-nums' },
+
+  // Timer prompt (before countdown)
+  timerPromptOverlay: { position: 'fixed', inset: 0, background: 'var(--countdown-overlay)', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 96, padding: 28, animation: 'fadeIn 0.2s ease' },
+  timerPromptCard: { width: '100%', maxWidth: 360, background: 'var(--surface)', border: '1.5px solid var(--border)', borderRadius: 22, padding: '28px 24px', boxShadow: '0 16px 40px var(--shadow-lg)', textAlign: 'center' },
+  timerPromptTitle: { fontFamily: "'Archivo Black', sans-serif", fontSize: 24, lineHeight: 1.05, letterSpacing: -0.5, color: 'var(--text)', marginBottom: 10 },
+  timerPromptSub: { fontFamily: "'Inter', sans-serif", fontSize: 13, color: 'var(--text-muted)', marginBottom: 22, lineHeight: 1.4 },
+  timerPromptButtons: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 },
 
   schemeBar: { width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--bg-solid)', border: '1.5px solid var(--border)', padding: '12px 16px', marginBottom: 18, cursor: 'pointer', fontFamily: 'inherit', color: 'var(--text)', borderRadius: 12 },
   schemeBarLeft: { textAlign: 'left' },
