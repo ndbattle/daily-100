@@ -417,6 +417,7 @@ export default function DailyHundred() {
   const [cooldownActive, setCooldownActive] = useState(false);
   const [cooldownPicks, setCooldownPicks] = useState([]);
   const [cooldownDone, setCooldownDone] = useState([]);
+  const [cooldownCelebrate, setCooldownCelebrate] = useState(false);
 
   // Home-page pending selections (not persisted until START)
   const [pendingTarget, setPendingTarget] = useState(100);
@@ -802,7 +803,21 @@ export default function DailyHundred() {
   }
 
   function toggleCooldownDone(i) {
-    setCooldownDone((prev) => prev.map((d, idx) => (idx === i ? !d : d)));
+    setCooldownDone((prev) => {
+      const next = prev.map((d, idx) => (idx === i ? !d : d));
+      // If this tap completed all stretches, trigger celebration
+      if (next.every(Boolean) && !prev.every(Boolean)) {
+        setTimeout(() => setCooldownCelebrate(true), 250);
+        // Haptic finishing pattern
+        try {
+          if (typeof navigator !== 'undefined' && navigator.vibrate) {
+            navigator.vibrate([60, 50, 60, 50, 200]);
+          }
+        } catch {}
+      }
+      return next;
+    });
+    // Regular tap haptic
     try {
       if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(30);
     } catch {}
@@ -812,7 +827,15 @@ export default function DailyHundred() {
     setCooldownActive(false);
     setCooldownPicks([]);
     setCooldownDone([]);
+    setCooldownCelebrate(false);
   }
+
+  // After cooldown celebration shows, auto-return to home after 3.5s
+  useEffect(() => {
+    if (!cooldownCelebrate) return;
+    const t = setTimeout(() => finishCooldown(), 3500);
+    return () => clearTimeout(t);
+  }, [cooldownCelebrate]);
 
   function beginWorkout() {
     setCountdown(10);
@@ -1094,7 +1117,6 @@ export default function DailyHundred() {
 
   // ---------------- COOLDOWN SCREEN ----------------
   if (cooldownActive) {
-    const allDone = cooldownDone.every(Boolean);
     return (
       <div style={styles.shell}>
         <style>{cssText}</style>
@@ -1148,17 +1170,20 @@ export default function DailyHundred() {
             })}
           </div>
 
-          {allDone && (
-            <button style={styles.startBtn} onClick={finishCooldown}>
-              FINISHED →
-            </button>
-          )}
-
           <div style={styles.footer}>
             <span>SLOW BREATHS.</span>
             <span>WELL DONE.</span>
           </div>
         </div>
+
+        {cooldownCelebrate && (
+          <div style={styles.cooldownCelebrate}>
+            <div style={styles.cooldownCelebrateInner}>
+              <div style={styles.cooldownCelebrateTitle}>AMAZING WORK<br />TODAY</div>
+              <div style={styles.cooldownCelebrateSub}>SEE YOU TOMORROW</div>
+            </div>
+          </div>
+        )}
 
         {showSheet && renderSheet()}
       </div>
@@ -2330,6 +2355,12 @@ const styles = {
   warmupReps: { fontFamily: "'JetBrains Mono', monospace", fontSize: 14, fontWeight: 700, letterSpacing: 0.5 },
   warmupTip: { fontFamily: "'Inter', sans-serif", fontSize: 12, lineHeight: 1.4 },
   warmupCheck: { fontFamily: "'JetBrains Mono', monospace", fontSize: 10, letterSpacing: 1.5, fontWeight: 700, textAlign: 'right' },
+
+  // Cooldown completion takeover
+  cooldownCelebrate: { position: 'fixed', inset: 0, background: 'var(--accent-gradient)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200, animation: 'flashBgIn 3.5s ease-out forwards', textAlign: 'center', padding: '40px 28px' },
+  cooldownCelebrateInner: { color: '#fff', animation: 'flashIn 3.5s ease-out forwards', textShadow: '0 4px 24px rgba(0,0,0,0.25)' },
+  cooldownCelebrateTitle: { fontFamily: "'Archivo Black', sans-serif", fontSize: 72, lineHeight: 0.95, letterSpacing: -2.5, marginBottom: 28 },
+  cooldownCelebrateSub: { fontFamily: "'JetBrains Mono', monospace", fontSize: 18, letterSpacing: 4, fontWeight: 700 },
 
   // Home
   homeIntro: { marginBottom: 30, textAlign: 'center' },
