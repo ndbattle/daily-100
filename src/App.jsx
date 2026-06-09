@@ -1053,7 +1053,7 @@ export default function DailyHundred() {
 
           {allDone && (
             <button style={styles.startBtn} onClick={finishWarmup}>
-              FINISHED → BACK TO SETUP
+              FINISHED → BACK TO WORKOUT SELECTION
             </button>
           )}
 
