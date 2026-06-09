@@ -128,9 +128,9 @@ export const BUILTIN_EXERCISES = [
 export const WARMUP_EXERCISES = [
   { name: 'ARM CIRCLES', tip: 'Slow controlled circles. 10 forward, 10 back.', reps: 20 },
   { name: 'LEG SWINGS', tip: 'Each leg. Forward and side swings. Stay tall.', reps: 20 },
-  { name: 'JUMPING JACKS', tip: 'Light on the feet. Get the blood flowing.', reps: 30 },
-  { name: 'HIGH KNEES', tip: 'Drive knees up to hip height. Quick steps.', reps: 30 },
-  { name: 'BUTT KICKS', tip: 'Heels to glutes. Quick light steps.', reps: 30 },
+  { name: 'JUMPING JACKS', tip: 'Light on the feet. Get the blood flowing.', reps: 20 },
+  { name: 'HIGH KNEES', tip: 'Drive knees up to hip height. Quick steps.', reps: 20 },
+  { name: 'BUTT KICKS', tip: 'Heels to glutes. Quick light steps.', reps: 20 },
   { name: 'WALKING LUNGES', tip: 'Each leg. Step forward, back knee down.', reps: 10 },
   { name: 'INCHWORMS', tip: 'Hands walk out to plank, walk feet up.', reps: 8 },
   { name: 'AIR SQUATS', tip: 'Slow and controlled. Hips back, knees out.', reps: 15 },
