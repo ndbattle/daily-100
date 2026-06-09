@@ -1509,7 +1509,6 @@ export default function DailyHundred() {
           {done ? (
             <div style={styles.doneBlock}>
               <div style={styles.doneText}>DONE.</div>
-              <div style={styles.doneSub}>See you tomorrow.</div>
               <button
                 style={{
                   ...styles.startBtn,
@@ -1519,6 +1518,26 @@ export default function DailyHundred() {
                 }}
                 onClick={startCooldown}
               >COOL DOWN →</button>
+              <div style={{ ...styles.secondaryRow, marginBottom: 16 }}>
+                <button
+                  style={{
+                    ...styles.ghostBtn,
+                    fontSize: 11,
+                    padding: '13px 0',
+                    letterSpacing: 1.5,
+                  }}
+                  onClick={() => { setShowSheet(true); setTab('history'); }}
+                >VIEW LOG</button>
+                <button
+                  style={{
+                    ...styles.ghostBtn,
+                    fontSize: 11,
+                    padding: '13px 0',
+                    letterSpacing: 1.5,
+                  }}
+                  onClick={completeCooldown}
+                >SKIP COOLDOWN</button>
+              </div>
               <button
                 style={{
                   ...styles.ghostBtn,
@@ -1845,7 +1864,10 @@ export default function DailyHundred() {
                     <div>
                       <div style={styles.historyEx}>{h.exercise}</div>
                       <div style={styles.historyScheme}>
-                        {h.scheme}{h.equipment ? ` · ${h.equipment.join(' / ')}` : ''}{h.duration != null ? ` · ${formatDuration(h.duration)}` : ''}
+                        {h.scheme}{h.equipment ? ` · ${h.equipment.join(' / ')}` : ''}
+                        {h.duration != null && (
+                          <span style={styles.historyDuration}> · {formatDuration(h.duration)}</span>
+                        )}
                       </div>
                     </div>
                     <div style={styles.historyReps}>{h.reps}</div>
@@ -2597,6 +2619,7 @@ const styles = {
   historyDate: { fontFamily: "'JetBrains Mono', monospace", fontWeight: 700, fontSize: 11, color: 'var(--text-muted)', letterSpacing: 1 },
   historyEx: { fontWeight: 600, fontSize: 13 },
   historyScheme: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, letterSpacing: 1, color: 'var(--text-muted)', marginTop: 2 },
+  historyDuration: { color: 'var(--accent)', fontWeight: 700 },
   historyReps: { fontFamily: "'JetBrains Mono', monospace", fontWeight: 700, textAlign: 'right', color: 'var(--accent)' },
   emptyHistory: { padding: '40px 0', textAlign: 'center', color: 'var(--text-muted)', fontSize: 13 },
   accountBlock: { marginTop: 24, padding: '16px', background: 'var(--surface)', border: '1.5px solid var(--border)', borderRadius: 14, display: 'flex', flexDirection: 'column', gap: 14, boxShadow: '0 1px 3px var(--shadow-xs)' },
