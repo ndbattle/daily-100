@@ -928,6 +928,7 @@ export default function DailyHundred() {
   }
 
   function resetTimer() {
+    if (!window.confirm('Reset timer back to 0:00?')) return;
     setState((prev) => ({
       ...prev,
       timerAccumulated: 0,
@@ -1529,7 +1530,7 @@ export default function DailyHundred() {
             </div>
           )}
 
-          {state.useTimer && (state.timerStartedAt || state.timerAccumulated > 0) && (() => {
+          {state.useTimer && state.workoutStarted && (() => {
             const acc = state.timerAccumulated || 0;
             const segment = state.timerStartedAt ? (tickNow - state.timerStartedAt) / 1000 : 0;
             const elapsed = Math.max(0, Math.floor(acc + segment));
@@ -2609,6 +2610,8 @@ const styles = {
   timerBlock: { textAlign: 'center', padding: '14px 0 16px', marginBottom: 14, borderBottom: '1.5px solid var(--border)' },
   timerLabel: { fontFamily: "'JetBrains Mono', monospace", fontSize: 10, letterSpacing: 2, color: 'var(--text-muted)', fontWeight: 700, marginBottom: 6 },
   timerValue: { fontFamily: "'Archivo Black', sans-serif", fontSize: 44, lineHeight: 1, color: 'var(--text)', letterSpacing: -0.5, fontVariantNumeric: 'tabular-nums' },
+  timerControls: { display: 'flex', gap: 8, justifyContent: 'center', marginTop: 12 },
+  timerCtrlBtn: { fontFamily: "'JetBrains Mono', monospace", fontSize: 10, fontWeight: 700, letterSpacing: 1.8, padding: '8px 16px', background: 'var(--surface)', color: 'var(--text)', border: '1.5px solid var(--border)', cursor: 'pointer', borderRadius: 8 },
   timerPauseBtn: { marginTop: 12, fontFamily: "'JetBrains Mono', monospace", fontSize: 10, fontWeight: 700, letterSpacing: 1.8, padding: '8px 18px', background: 'var(--surface)', color: 'var(--text)', border: '1.5px solid var(--border)', cursor: 'pointer', borderRadius: 8 },
 
   // Timer prompt (before countdown)
