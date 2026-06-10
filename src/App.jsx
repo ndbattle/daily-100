@@ -178,6 +178,7 @@ const DEFAULT_STATE = {
   workoutStarted: false,
   useTimer: false,
   timerStartedAt: null,
+  timerAccumulated: 0,
   target: 100,
   equipment: ['bodyweight'],
   reps: 0,
@@ -580,10 +581,13 @@ export default function DailyHundred() {
     next.streak = newStreak;
     next.bestStreak = Math.max(state.bestStreak || 0, newStreak);
     next.lastCompletedDate = TODAY();
-    // If timer was running, capture the duration
-    const duration = state.useTimer && state.timerStartedAt
-      ? Math.floor((Date.now() - state.timerStartedAt) / 1000)
-      : null;
+    // If timer was running, capture the total duration (accumulated + current segment)
+    let duration = null;
+    if (state.useTimer) {
+      const acc = state.timerAccumulated || 0;
+      const segment = state.timerStartedAt ? (Date.now() - state.timerStartedAt) / 1000 : 0;
+      duration = Math.floor(acc + segment);
+    }
     const entry = {
       date: TODAY(),
       exercise: exercise.name,
@@ -597,6 +601,7 @@ export default function DailyHundred() {
     next.history = [entry, ...state.history.filter((h) => h.date !== TODAY())].slice(0, 60);
     // Stop the timer
     next.timerStartedAt = null;
+    next.timerAccumulated = 0;
     setJustFinished(true);
     // Haptic buzz on mobile when supported
     try {
@@ -787,6 +792,7 @@ export default function DailyHundred() {
       workoutStarted: false,
       useTimer: false,
       timerStartedAt: null,
+      timerAccumulated: 0,
       reps: 0,
       setsDone: [],
       schemeId: 'free',
@@ -892,11 +898,32 @@ export default function DailyHundred() {
 
   function chooseTimer(useIt) {
     setShowTimerPrompt(false);
-    setState((prev) => ({ ...prev, useTimer: !!useIt, timerStartedAt: null }));
+    setState((prev) => ({ ...prev, useTimer: !!useIt, timerStartedAt: null, timerAccumulated: 0 }));
     // Begin the 10-second countdown
     setCountdown(10);
     try {
       if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(30);
+    } catch {}
+  }
+
+  function pauseTimer() {
+    if (!state?.timerStartedAt) return;
+    const segmentSeconds = (Date.now() - state.timerStartedAt) / 1000;
+    setState((prev) => ({
+      ...prev,
+      timerAccumulated: (prev.timerAccumulated || 0) + segmentSeconds,
+      timerStartedAt: null,
+    }));
+    try {
+      if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(20);
+    } catch {}
+  }
+
+  function resumeTimer() {
+    if (state?.timerStartedAt) return; // already running
+    setState((prev) => ({ ...prev, timerStartedAt: Date.now() }));
+    try {
+      if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(20);
     } catch {}
   }
 
@@ -949,7 +976,7 @@ export default function DailyHundred() {
     setCountdown(null);
     setPendingTarget(state.target);
     setPendingEquipment(state.equipment);
-    setState({ ...state, sessionStarted: false, workoutStarted: false, useTimer: false, timerStartedAt: null, reps: 0, setsDone: [] });
+    setState({ ...state, sessionStarted: false, workoutStarted: false, useTimer: false, timerStartedAt: null, timerAccumulated: 0, reps: 0, setsDone: [] });
   }
 
   function togglePendingEquipment(id) {
@@ -1164,7 +1191,7 @@ export default function DailyHundred() {
 
           {allDone && (
             <button style={styles.startBtn} onClick={finishWarmup}>
-              FINISHED → BACK TO SELECTION
+              FINISHED → BACK TO SETUP
             </button>
           )}
 
@@ -1490,14 +1517,28 @@ export default function DailyHundred() {
             </div>
           )}
 
-          {state.useTimer && state.timerStartedAt && (
-            <div style={styles.timerBlock}>
-              <div style={styles.timerLabel}>ELAPSED</div>
-              <div style={styles.timerValue}>
-                {formatDuration(Math.max(0, Math.floor((tickNow - state.timerStartedAt) / 1000)))}
+          {state.useTimer && (state.timerStartedAt || state.timerAccumulated > 0) && (() => {
+            const acc = state.timerAccumulated || 0;
+            const segment = state.timerStartedAt ? (tickNow - state.timerStartedAt) / 1000 : 0;
+            const elapsed = Math.max(0, Math.floor(acc + segment));
+            const isPaused = !state.timerStartedAt;
+            return (
+              <div style={styles.timerBlock}>
+                <div style={styles.timerLabel}>
+                  {isPaused ? 'PAUSED' : 'ELAPSED'}
+                </div>
+                <div style={{ ...styles.timerValue, opacity: isPaused ? 0.5 : 1 }}>
+                  {formatDuration(elapsed)}
+                </div>
+                <button
+                  style={styles.timerPauseBtn}
+                  onClick={isPaused ? resumeTimer : pauseTimer}
+                >
+                  {isPaused ? '▶ RESUME' : '❚❚ PAUSE'}
+                </button>
               </div>
-            </div>
-          )}
+            );
+          })()}
 
           <div style={styles.counterTop}>
             <div>
@@ -2547,6 +2588,7 @@ const styles = {
   timerBlock: { textAlign: 'center', padding: '14px 0 16px', marginBottom: 14, borderBottom: '1.5px solid var(--border)' },
   timerLabel: { fontFamily: "'JetBrains Mono', monospace", fontSize: 10, letterSpacing: 2, color: 'var(--text-muted)', fontWeight: 700, marginBottom: 6 },
   timerValue: { fontFamily: "'Archivo Black', sans-serif", fontSize: 44, lineHeight: 1, color: 'var(--text)', letterSpacing: -0.5, fontVariantNumeric: 'tabular-nums' },
+  timerPauseBtn: { marginTop: 12, fontFamily: "'JetBrains Mono', monospace", fontSize: 10, fontWeight: 700, letterSpacing: 1.8, padding: '8px 18px', background: 'var(--surface)', color: 'var(--text)', border: '1.5px solid var(--border)', cursor: 'pointer', borderRadius: 8 },
 
   // Timer prompt (before countdown)
   timerPromptOverlay: { position: 'fixed', inset: 0, background: 'var(--countdown-overlay)', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 96, padding: 28, animation: 'fadeIn 0.2s ease' },
