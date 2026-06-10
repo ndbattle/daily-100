@@ -927,6 +927,18 @@ export default function DailyHundred() {
     } catch {}
   }
 
+  function resetTimer() {
+    setState((prev) => ({
+      ...prev,
+      timerAccumulated: 0,
+      // If timer was running, keep it running but from 0. If paused, stay paused at 0.
+      timerStartedAt: prev.timerStartedAt ? Date.now() : null,
+    }));
+    try {
+      if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(20);
+    } catch {}
+  }
+
   function skipCountdown() {
     setCountdown(null);
     setState((prev) => ({
@@ -1530,12 +1542,21 @@ export default function DailyHundred() {
                 <div style={{ ...styles.timerValue, opacity: isPaused ? 0.5 : 1 }}>
                   {formatDuration(elapsed)}
                 </div>
-                <button
-                  style={styles.timerPauseBtn}
-                  onClick={isPaused ? resumeTimer : pauseTimer}
-                >
-                  {isPaused ? '▶ RESUME' : '❚❚ PAUSE'}
-                </button>
+                <div style={styles.timerControls}>
+                  <button
+                    style={styles.timerCtrlBtn}
+                    onClick={isPaused ? resumeTimer : pauseTimer}
+                  >
+                    {isPaused ? '▶ RESUME' : '❚❚ PAUSE'}
+                  </button>
+                  <button
+                    style={styles.timerCtrlBtn}
+                    onClick={resetTimer}
+                    disabled={elapsed === 0}
+                  >
+                    ↺ RESET
+                  </button>
+                </div>
               </div>
             );
           })()}
