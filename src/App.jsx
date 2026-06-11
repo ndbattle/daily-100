@@ -2810,7 +2810,7 @@ const styles = {
   noteEditButtons: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 },
   historyHeader: { marginBottom: 16, paddingBottom: 12, borderBottom: '1.5px solid var(--border)' },
   historyTitle: { fontFamily: "'Archivo Black', sans-serif", fontSize: 22, color: 'var(--text)', letterSpacing: -0.3 },
-  historySubtitle: { fontFamily: "'JetBrains Mono', monospace", fontSize: 10, letterSpacing: 1.5, color: 'var(--text-muted)', fontWeight: 700, marginTop: 5 },
+  historySubtitle: { fontFamily: "'Inter', sans-serif", fontSize: 13, letterSpacing: 0, color: 'var(--text-muted)', fontWeight: 500, marginTop: 7, lineHeight: 1.4 },
   historyRow: { display: 'grid', gridTemplateColumns: '70px 1fr 50px', alignItems: 'center', padding: '12px 4px', borderBottom: '1px solid var(--border-soft)', fontSize: 13, width: '100%', textAlign: 'left', background: 'transparent', border: 'none', borderBottom: '1px solid var(--border-soft)', cursor: 'pointer', fontFamily: 'inherit', color: 'inherit', borderRadius: 6, gap: 4 },
   historyDate: { fontFamily: "'JetBrains Mono', monospace", fontWeight: 700, fontSize: 11, color: 'var(--text-muted)', letterSpacing: 1 },
   historyEx: { fontWeight: 600, fontSize: 13 },
