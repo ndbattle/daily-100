@@ -956,6 +956,7 @@ export default function DailyHundred() {
 
   // ----- History notes and sorting -----
   function openNoteEditor(entry) {
+    setShowSheet(false);
     setEditingEntry(entry);
     setNoteDraft(entry.notes || '');
   }
@@ -963,6 +964,9 @@ export default function DailyHundred() {
   function cancelNoteEdit() {
     setEditingEntry(null);
     setNoteDraft('');
+    // Return to the menu sheet showing history
+    setTab('history');
+    setShowSheet(true);
   }
 
   function saveNote() {
@@ -976,7 +980,11 @@ export default function DailyHundred() {
           : h
       ),
     }));
-    cancelNoteEdit();
+    setEditingEntry(null);
+    setNoteDraft('');
+    // Return to the menu sheet showing history
+    setTab('history');
+    setShowSheet(true);
   }
 
   const sortedHistory = useMemo(() => {
@@ -1197,6 +1205,70 @@ export default function DailyHundred() {
   const dateLabel = new Date(state.date + 'T00:00:00').toLocaleDateString(undefined, {
     weekday: 'long', month: 'short', day: 'numeric',
   });
+
+  // ---------------- NOTE EDITOR SCREEN (dedicated full screen) ----------------
+  if (editingEntry) {
+    return (
+      <div style={styles.shell}>
+        <style>{cssText}</style>
+        <div style={styles.frame}>
+          <div style={styles.headerRow}>
+            <button style={styles.changeLink} onClick={cancelNoteEdit}>← BACK</button>
+            <div style={styles.kicker}>EDIT NOTE</div>
+            <div style={{ width: 42 }} />
+          </div>
+
+          <div style={styles.divider} />
+
+          <h1 style={styles.noteScreenTitle}>{editingEntry.exercise}</h1>
+          <div style={styles.noteScreenMeta}>
+            {new Date(editingEntry.date + 'T00:00:00').toLocaleDateString(undefined, {
+              weekday: 'long', month: 'long', day: 'numeric', year: 'numeric',
+            })}
+          </div>
+          <div style={styles.noteScreenStats}>
+            <span>{editingEntry.reps} reps</span>
+            {editingEntry.scheme && <span> · {editingEntry.scheme}</span>}
+            {editingEntry.equipment && <span> · {editingEntry.equipment.join(' / ')}</span>}
+            {editingEntry.duration != null && (
+              <span> · <span style={{ color: 'var(--accent)', fontWeight: 700 }}>{formatDuration(editingEntry.duration)}</span></span>
+            )}
+          </div>
+
+          <div style={styles.noteScreenLabel}>YOUR NOTES</div>
+          <textarea
+            value={noteDraft}
+            onChange={(e) => setNoteDraft(e.target.value)}
+            placeholder="Weight used, how it felt, what to try next time, any modifications..."
+            style={styles.noteScreenTextarea}
+            autoFocus
+          />
+
+          <div style={styles.noteScreenButtons}>
+            <button
+              style={{
+                ...styles.ghostBtn,
+                fontSize: 13,
+                padding: '16px 0',
+                letterSpacing: 1.5,
+              }}
+              onClick={cancelNoteEdit}
+            >CANCEL</button>
+            <button
+              style={{
+                ...styles.startBtn,
+                fontSize: 16,
+                padding: '16px 0',
+                letterSpacing: 1.5,
+                marginBottom: 0,
+              }}
+              onClick={saveNote}
+            >SAVE NOTE</button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   // ---------------- WARMUP SCREEN ----------------
   if (warmupActive) {
@@ -2458,46 +2530,7 @@ export default function DailyHundred() {
           )}
         </div>
 
-        {editingEntry && (
-          <div
-            style={styles.noteEditOverlay}
-            onClick={(e) => {
-              e.stopPropagation();
-              cancelNoteEdit();
-            }}
-          >
-            <div style={styles.noteEditCard} onClick={(e) => e.stopPropagation()}>
-              <div style={styles.noteEditTitle}>{editingEntry.exercise}</div>
-              <div style={styles.noteEditMeta}>
-                {new Date(editingEntry.date + 'T00:00:00').toLocaleDateString(undefined, {
-                  month: 'long', day: 'numeric', year: 'numeric',
-                })}
-                {' · '}{editingEntry.reps} reps
-                {editingEntry.scheme && ` · ${editingEntry.scheme}`}
-                {editingEntry.duration != null && ` · ${formatDuration(editingEntry.duration)}`}
-              </div>
-              <div style={styles.noteEditLabel}>NOTES</div>
-              <textarea
-                value={noteDraft}
-                onChange={(e) => setNoteDraft(e.target.value)}
-                placeholder="Weight used, how it felt, what to try next time..."
-                style={styles.noteTextarea}
-                autoFocus
-                rows={5}
-              />
-              <div style={styles.noteEditButtons}>
-                <button
-                  style={{ ...styles.ghostBtn, padding: '14px 0', fontSize: 13, letterSpacing: 1.5 }}
-                  onClick={cancelNoteEdit}
-                >CANCEL</button>
-                <button
-                  style={{ ...styles.primaryBtn, padding: '14px 0', fontSize: 13, letterSpacing: 1.5 }}
-                  onClick={saveNote}
-                >SAVE</button>
-              </div>
-            </div>
-          </div>
-        )}
+        {editingEntry && null /* note editor is now rendered as a full screen, see top of component return */}
       </div>
     );
   }
@@ -2850,6 +2883,7 @@ const styles = {
   historySortBtn: { flex: 1, fontFamily: "'JetBrains Mono', monospace", fontSize: 10, fontWeight: 700, letterSpacing: 1.5, padding: '10px 0', border: '1.5px solid var(--border)', cursor: 'pointer', borderRadius: 8, boxShadow: '0 1px 2px var(--shadow-xs)' },
   historyNotePreview: { fontFamily: "'Inter', sans-serif", fontSize: 12, color: 'var(--text-muted)', fontStyle: 'italic', marginTop: 4, lineHeight: 1.4, overflow: 'hidden', textOverflow: 'ellipsis', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' },
   noteEditCard: { width: '100%', maxWidth: 400, background: 'var(--surface)', border: '1.5px solid var(--border)', borderRadius: 22, padding: '24px 22px', boxShadow: '0 16px 40px var(--shadow-lg)' },
+  noteEditOverlay: { position: 'fixed', inset: 0, background: 'var(--countdown-overlay)', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 70, padding: 28, animation: 'fadeIn 0.2s ease' },
   noteEditTitle: { fontFamily: "'Archivo Black', sans-serif", fontSize: 22, lineHeight: 1.05, letterSpacing: -0.4, color: 'var(--text)', marginBottom: 6 },
   noteEditMeta: { fontFamily: "'JetBrains Mono', monospace", fontSize: 10, letterSpacing: 0.5, color: 'var(--text-muted)', marginBottom: 18, fontWeight: 700 },
   noteEditLabel: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, letterSpacing: 1.5, fontWeight: 700, color: 'var(--text-muted)', marginBottom: 8 },
