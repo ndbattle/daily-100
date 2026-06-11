@@ -932,8 +932,7 @@ export default function DailyHundred() {
     setState((prev) => ({
       ...prev,
       timerAccumulated: 0,
-      // If timer was running, keep it running but from 0. If paused, stay paused at 0.
-      timerStartedAt: prev.timerStartedAt ? Date.now() : null,
+      timerStartedAt: null, // Always pause on reset — user must tap RESUME to start again
     }));
     try {
       if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(20);
