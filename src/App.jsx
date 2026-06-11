@@ -811,7 +811,9 @@ export default function DailyHundred() {
       setsDone: [],
       schemeId: 'free',
       todayExercise: picked,
-      swapIndex: 0,
+      // swapIndex deliberately NOT reset here — limit is 2 per 24 hours,
+      // persists across going back to home and entering a new session.
+      // The day rollover (see load effect) resets it daily.
     });
   }
 
