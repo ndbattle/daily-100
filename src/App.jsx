@@ -572,6 +572,18 @@ export default function DailyHundred() {
   const done = totalReps >= target;
   const exercise = state?.todayExercise || BUILTIN_EXERCISES[0];
 
+  // Prior history for today's exercise — used for the recap block on the workout card
+  const priorRuns = useMemo(() => {
+    if (!state?.history || !exercise?.name) return [];
+    return state.history.filter(
+      (h) => h.exercise === exercise.name && h.date !== TODAY() && h.completed
+    );
+  }, [state?.history, exercise?.name]);
+  const lastRunWithNotes = useMemo(
+    () => priorRuns.find((h) => h.notes && h.notes.trim()),
+    [priorRuns]
+  );
+
   function registerCompletion(next) {
     let newStreak = state.streak;
     if (state.lastCompletedDate) {
@@ -1518,6 +1530,28 @@ export default function DailyHundred() {
           <div style={styles.todayLabel}>TODAY'S MOVEMENT</div>
           <h1 style={styles.exerciseName}>{exercise.name}</h1>
           <div style={styles.tip}>{exercise.tip}</div>
+
+          {priorRuns.length > 0 && (
+            <div style={styles.priorRecap}>
+              <div style={styles.priorRecapHeader}>
+                <span style={styles.priorRecapCount}>
+                  {priorRuns.length}×
+                </span>
+                <span style={styles.priorRecapLabel}>
+                  You've done this {priorRuns.length === 1 ? 'once' : `${priorRuns.length} times`} before
+                </span>
+              </div>
+              {lastRunWithNotes && (
+                <div style={styles.priorRecapNoteBlock}>
+                  <div style={styles.priorRecapNoteHeader}>
+                    Last note · {new Date(lastRunWithNotes.date + 'T00:00:00').toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+                  </div>
+                  <div style={styles.priorRecapNote}>"{lastRunWithNotes.notes}"</div>
+                </div>
+              )}
+            </div>
+          )}
+
           <a
             href={videoUrlFor(exercise)}
             target="_blank"
@@ -2710,6 +2744,13 @@ const styles = {
   todayLabel: { fontFamily: "'JetBrains Mono', monospace", fontSize: 10, letterSpacing: 2, color: 'var(--dark-card-accent)', fontWeight: 700, marginBottom: 10 },
   exerciseName: { fontFamily: "'Archivo Black', sans-serif", fontSize: 32, lineHeight: 0.96, margin: '0 0 14px', letterSpacing: -0.5, color: 'var(--dark-card-accent)' },
   tip: { fontSize: 14, color: 'var(--dark-card-muted)', lineHeight: 1.5, borderTop: '1px solid var(--dark-card-border)', paddingTop: 14 },
+  priorRecap: { marginTop: 14, padding: '14px 0 4px', borderTop: '1px solid var(--dark-card-border)' },
+  priorRecapHeader: { display: 'flex', alignItems: 'center', gap: 10 },
+  priorRecapCount: { fontFamily: "'Archivo Black', sans-serif", fontSize: 22, color: 'var(--dark-card-accent)', letterSpacing: -0.5, lineHeight: 1 },
+  priorRecapLabel: { fontFamily: "'Inter', sans-serif", fontSize: 13, color: 'var(--dark-card-text)', fontWeight: 600, lineHeight: 1.3 },
+  priorRecapNoteBlock: { marginTop: 12, padding: '10px 12px', background: 'rgba(255,255,255,0.06)', borderRadius: 10, borderLeft: '3px solid var(--dark-card-accent)' },
+  priorRecapNoteHeader: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, letterSpacing: 1.5, fontWeight: 700, color: 'var(--dark-card-accent)', marginBottom: 6 },
+  priorRecapNote: { fontFamily: "'Inter', sans-serif", fontSize: 13, color: 'var(--dark-card-text)', lineHeight: 1.5, fontStyle: 'italic' },
   howToLink: { display: 'inline-block', marginTop: 14, fontFamily: "'JetBrains Mono', monospace", fontSize: 10, letterSpacing: 1.5, fontWeight: 700, color: 'var(--dark-card-accent)', textDecoration: 'none', borderBottom: '1px solid var(--dark-card-accent)', paddingBottom: 2 },
   counterBlock: { background: 'var(--surface)', border: '1.5px solid var(--border)', padding: 22, marginBottom: 16, borderRadius: 20, boxShadow: '0 2px 10px var(--shadow-xs)' },
 
