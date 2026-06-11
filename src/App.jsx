@@ -2012,55 +2012,32 @@ export default function DailyHundred() {
                 {state.history.length === 0 && (
                   <div style={styles.emptyHistory}>Finish today to start your log.</div>
                 )}
-                {sortedHistory.map((h) => {
-                  const isExpanded = expandedNote === h.date;
-                  return (
-                    <div key={h.date} style={styles.historyCard}>
-                      <button
-                        onClick={() => setExpandedNote(isExpanded ? null : h.date)}
-                        style={styles.historyCardTopBtn}
-                      >
-                        <div style={styles.historyDate}>
-                          {new Date(h.date + 'T00:00:00').toLocaleDateString(undefined, {
-                            month: 'short', day: 'numeric',
-                          })}
-                        </div>
-                        <div style={{ minWidth: 0, flex: 1, textAlign: 'left' }}>
-                          <div style={styles.historyEx}>{h.exercise}</div>
-                          <div style={styles.historyScheme}>
-                            {h.scheme}{h.equipment ? ` · ${h.equipment.join(' / ')}` : ''}
-                            {h.duration != null && (
-                              <span style={styles.historyDuration}> · {formatDuration(h.duration)}</span>
-                            )}
-                          </div>
-                          {!isExpanded && h.notes && (
-                            <div style={styles.historyNotePreview}>"{h.notes}"</div>
-                          )}
-                          {!isExpanded && !h.notes && (
-                            <div style={styles.historyAddNoteHint}>+ Add notes</div>
-                          )}
-                        </div>
-                        <div style={styles.historyReps}>{h.reps}</div>
-                      </button>
-                      {isExpanded && (
-                        <div style={styles.historyNoteEditWrap}>
-                          <textarea
-                            value={h.notes || ''}
-                            onChange={(e) => updateHistoryNote(h.date, e.target.value)}
-                            placeholder="Weight used, how it felt, modifications..."
-                            style={styles.historyNoteInput}
-                            autoFocus
-                            rows={3}
-                          />
-                          <button
-                            onClick={() => setExpandedNote(null)}
-                            style={styles.historyNoteDoneBtn}
-                          >DONE</button>
-                        </div>
+                {sortedHistory.map((h) => (
+                  <button
+                    key={h.date}
+                    onClick={() => setExpandedNote(h.date)}
+                    style={styles.historyRow}
+                  >
+                    <div style={styles.historyDate}>
+                      {new Date(h.date + 'T00:00:00').toLocaleDateString(undefined, {
+                        month: 'short', day: 'numeric',
+                      })}
+                    </div>
+                    <div style={{ minWidth: 0 }}>
+                      <div style={styles.historyEx}>{h.exercise}</div>
+                      <div style={styles.historyScheme}>
+                        {h.scheme}{h.equipment ? ` · ${h.equipment.join(' / ')}` : ''}
+                        {h.duration != null && (
+                          <span style={styles.historyDuration}> · {formatDuration(h.duration)}</span>
+                        )}
+                      </div>
+                      {h.notes && (
+                        <div style={styles.historyNotePreview}>"{h.notes}"</div>
                       )}
                     </div>
-                  );
-                })}
+                    <div style={styles.historyReps}>{h.reps}</div>
+                  </button>
+                ))}
               </div>
             </>
           )}
@@ -2467,6 +2444,44 @@ export default function DailyHundred() {
           )}
         </div>
 
+        {expandedNote && (() => {
+          const entry = state.history.find((h) => h.date === expandedNote);
+          if (!entry) return null;
+          return (
+            <div
+              style={styles.notePopupOverlay}
+              onClick={(e) => {
+                e.stopPropagation();
+                setExpandedNote(null);
+              }}
+            >
+              <div style={styles.notePopupCard} onClick={(e) => e.stopPropagation()}>
+                <div style={styles.notePopupTitle}>{entry.exercise}</div>
+                <div style={styles.notePopupMeta}>
+                  {new Date(entry.date + 'T00:00:00').toLocaleDateString(undefined, {
+                    month: 'long', day: 'numeric',
+                  })}
+                  {' · '}{entry.reps} reps
+                  {entry.duration != null && ` · ${formatDuration(entry.duration)}`}
+                </div>
+                <div style={styles.notePopupLabel}>NOTES</div>
+                <textarea
+                  value={entry.notes || ''}
+                  onChange={(e) => updateHistoryNote(entry.date, e.target.value)}
+                  placeholder="Weight used, how it felt, modifications..."
+                  style={styles.notePopupTextarea}
+                  autoFocus
+                  rows={5}
+                />
+                <button
+                  onClick={() => setExpandedNote(null)}
+                  style={styles.notePopupDoneBtn}
+                >DONE</button>
+              </div>
+            </div>
+          );
+        })()}
+
       </div>
     );
   }
@@ -2814,13 +2829,20 @@ const styles = {
   medalSub: { fontFamily: "'JetBrains Mono', monospace", fontSize: 10, marginTop: 4, letterSpacing: 0.5 },
   statNum: { fontFamily: "'Archivo Black', sans-serif", fontSize: 30, lineHeight: 1, color: 'var(--accent)', textAlign: 'center' },
   statLabel: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, letterSpacing: 1.2, fontWeight: 700, color: 'var(--text-muted)', marginTop: 5, textAlign: 'center' },
-  historyList: { display: 'flex', flexDirection: 'column', gap: 12 },
-  historyCard: { background: 'var(--surface)', border: '1.5px solid var(--border)', borderRadius: 14, padding: '14px 14px 12px', boxShadow: '0 1px 3px var(--shadow-sm)' },
-  historyCardTop: { display: 'grid', gridTemplateColumns: '70px 1fr 50px', alignItems: 'center', gap: 8, marginBottom: 10 },
-  historyNoteInput: { width: '100%', fontFamily: "'Inter', sans-serif", fontSize: 13, lineHeight: 1.45, padding: '10px 12px', border: '1.5px solid var(--border)', background: 'var(--surface-input)', color: 'var(--text)', borderRadius: 10, resize: 'vertical', minHeight: 50 },
+  historyList: { display: 'flex', flexDirection: 'column', gap: 2 },
+  historyRow: { display: 'grid', gridTemplateColumns: '70px 1fr 50px', alignItems: 'center', padding: '12px 4px', fontSize: 13, width: '100%', textAlign: 'left', background: 'transparent', border: 'none', borderBottom: '1px solid var(--border-soft)', cursor: 'pointer', fontFamily: 'inherit', color: 'inherit', gap: 4 },
   historySortRow: { display: 'flex', gap: 6, marginBottom: 12 },
   historySortBtn: { flex: 1, fontFamily: "'JetBrains Mono', monospace", fontSize: 10, fontWeight: 700, letterSpacing: 1.5, padding: '10px 0', border: '1.5px solid var(--border)', cursor: 'pointer', borderRadius: 8, boxShadow: '0 1px 2px var(--shadow-xs)' },
   historyNotePreview: { fontFamily: "'Inter', sans-serif", fontSize: 12, color: 'var(--text-muted)', fontStyle: 'italic', marginTop: 4, lineHeight: 1.4, overflow: 'hidden', textOverflow: 'ellipsis', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' },
+
+  // Note popup (tap row in history to add/edit notes)
+  notePopupOverlay: { position: 'fixed', inset: 0, background: 'var(--countdown-overlay)', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 80, padding: 24, animation: 'fadeIn 0.2s ease' },
+  notePopupCard: { width: '100%', maxWidth: 420, background: 'var(--surface)', border: '1.5px solid var(--border)', borderRadius: 20, padding: '22px 22px', boxShadow: '0 16px 40px var(--shadow-lg)' },
+  notePopupTitle: { fontFamily: "'Archivo Black', sans-serif", fontSize: 22, lineHeight: 1.05, letterSpacing: -0.4, color: 'var(--text)', marginBottom: 6 },
+  notePopupMeta: { fontFamily: "'JetBrains Mono', monospace", fontSize: 10, letterSpacing: 0.5, color: 'var(--text-muted)', marginBottom: 18, fontWeight: 700 },
+  notePopupLabel: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, letterSpacing: 1.5, fontWeight: 700, color: 'var(--text-muted)', marginBottom: 8 },
+  notePopupTextarea: { width: '100%', fontFamily: "'Inter', sans-serif", fontSize: 14, lineHeight: 1.5, padding: '12px 14px', border: '1.5px solid var(--border)', background: 'var(--surface-input)', color: 'var(--text)', borderRadius: 10, resize: 'vertical', minHeight: 110, marginBottom: 14, boxShadow: '0 1px 2px var(--shadow-xs)' },
+  notePopupDoneBtn: { width: '100%', fontFamily: "'JetBrains Mono', monospace", fontSize: 12, fontWeight: 700, letterSpacing: 1.5, padding: '13px 0', background: 'var(--text)', color: 'var(--bg-solid)', border: 'none', cursor: 'pointer', borderRadius: 10 },
   noteEditCard: { width: '100%', maxWidth: 400, background: 'var(--surface)', border: '1.5px solid var(--border)', borderRadius: 22, padding: '24px 22px', boxShadow: '0 16px 40px var(--shadow-lg)' },
 
   // Note editor full screen
