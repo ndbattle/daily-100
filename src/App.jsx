@@ -874,6 +874,17 @@ export default function DailyHundred() {
     setCooldownCelebrate(false);
   }
 
+  function skipCooldown() {
+    // Trigger the same celebration as completing the cooldown,
+    // then the useEffect on cooldownCelebrate will auto-return home after 5.5s.
+    setCooldownCelebrate(true);
+    try {
+      if (typeof navigator !== 'undefined' && navigator.vibrate) {
+        navigator.vibrate([60, 50, 60, 50, 200]);
+      }
+    } catch {}
+  }
+
   function completeCooldown() {
     // Exit cooldown overlay
     setCooldownActive(false);
@@ -1670,7 +1681,7 @@ export default function DailyHundred() {
                     padding: '13px 0',
                     letterSpacing: 1.5,
                   }}
-                  onClick={completeCooldown}
+                  onClick={skipCooldown}
                 >SKIP COOLDOWN</button>
               </div>
               <button
@@ -1822,6 +1833,13 @@ export default function DailyHundred() {
             </div>
           </div>
         </>
+      )}
+
+      {cooldownCelebrate && (
+        <div style={styles.cooldownCelebrate}>
+          <div style={styles.cooldownCelebrateTitle}>AMAZING WORK<br />TODAY</div>
+          <div style={styles.cooldownCelebrateSub}>SEE YOU<br />TOMORROW</div>
+        </div>
       )}
 
       {showSheet && renderSheet()}
