@@ -1787,41 +1787,6 @@ export default function DailyHundred() {
         </div>
       </div>
 
-      {editingEntry && (
-        <div style={styles.timerPromptOverlay} onClick={cancelNoteEdit}>
-          <div style={styles.noteEditCard} onClick={(e) => e.stopPropagation()}>
-            <div style={styles.noteEditTitle}>{editingEntry.exercise}</div>
-            <div style={styles.noteEditMeta}>
-              {new Date(editingEntry.date + 'T00:00:00').toLocaleDateString(undefined, {
-                month: 'long', day: 'numeric', year: 'numeric',
-              })}
-              {' · '}{editingEntry.reps} reps
-              {editingEntry.scheme && ` · ${editingEntry.scheme}`}
-              {editingEntry.duration != null && ` · ${formatDuration(editingEntry.duration)}`}
-            </div>
-            <div style={styles.noteEditLabel}>NOTES</div>
-            <textarea
-              value={noteDraft}
-              onChange={(e) => setNoteDraft(e.target.value)}
-              placeholder="Weight used, how it felt, what to try next time..."
-              style={styles.noteTextarea}
-              autoFocus
-              rows={5}
-            />
-            <div style={styles.noteEditButtons}>
-              <button
-                style={{ ...styles.ghostBtn, padding: '14px 0', fontSize: 13, letterSpacing: 1.5 }}
-                onClick={cancelNoteEdit}
-              >CANCEL</button>
-              <button
-                style={{ ...styles.primaryBtn, padding: '14px 0', fontSize: 13, letterSpacing: 1.5 }}
-                onClick={saveNote}
-              >SAVE</button>
-            </div>
-          </div>
-        </div>
-      )}
-
       {showTimerPrompt && (
         <div style={styles.timerPromptOverlay}>
           <div style={styles.timerPromptCard}>
@@ -2492,6 +2457,47 @@ export default function DailyHundred() {
             </>
           )}
         </div>
+
+        {editingEntry && (
+          <div
+            style={styles.noteEditOverlay}
+            onClick={(e) => {
+              e.stopPropagation();
+              cancelNoteEdit();
+            }}
+          >
+            <div style={styles.noteEditCard} onClick={(e) => e.stopPropagation()}>
+              <div style={styles.noteEditTitle}>{editingEntry.exercise}</div>
+              <div style={styles.noteEditMeta}>
+                {new Date(editingEntry.date + 'T00:00:00').toLocaleDateString(undefined, {
+                  month: 'long', day: 'numeric', year: 'numeric',
+                })}
+                {' · '}{editingEntry.reps} reps
+                {editingEntry.scheme && ` · ${editingEntry.scheme}`}
+                {editingEntry.duration != null && ` · ${formatDuration(editingEntry.duration)}`}
+              </div>
+              <div style={styles.noteEditLabel}>NOTES</div>
+              <textarea
+                value={noteDraft}
+                onChange={(e) => setNoteDraft(e.target.value)}
+                placeholder="Weight used, how it felt, what to try next time..."
+                style={styles.noteTextarea}
+                autoFocus
+                rows={5}
+              />
+              <div style={styles.noteEditButtons}>
+                <button
+                  style={{ ...styles.ghostBtn, padding: '14px 0', fontSize: 13, letterSpacing: 1.5 }}
+                  onClick={cancelNoteEdit}
+                >CANCEL</button>
+                <button
+                  style={{ ...styles.primaryBtn, padding: '14px 0', fontSize: 13, letterSpacing: 1.5 }}
+                  onClick={saveNote}
+                >SAVE</button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     );
   }
