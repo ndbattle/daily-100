@@ -432,6 +432,9 @@ export default function DailyHundred() {
   const [cooldownCelebrate, setCooldownCelebrate] = useState(false);
   const [showTimerPrompt, setShowTimerPrompt] = useState(false);
   const [tickNow, setTickNow] = useState(Date.now());
+  const [historySort, setHistorySort] = useState('newest');
+  const [editingEntry, setEditingEntry] = useState(null);
+  const [noteDraft, setNoteDraft] = useState('');
 
   // Home-page pending selections (not persisted until START)
   const [pendingTarget, setPendingTarget] = useState(100);
@@ -938,6 +941,44 @@ export default function DailyHundred() {
       if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(20);
     } catch {}
   }
+
+  // ----- History notes and sorting -----
+  function openNoteEditor(entry) {
+    setEditingEntry(entry);
+    setNoteDraft(entry.notes || '');
+  }
+
+  function cancelNoteEdit() {
+    setEditingEntry(null);
+    setNoteDraft('');
+  }
+
+  function saveNote() {
+    if (!editingEntry) return;
+    const trimmed = noteDraft.trim();
+    setState((prev) => ({
+      ...prev,
+      history: prev.history.map((h) =>
+        h.date === editingEntry.date
+          ? { ...h, notes: trimmed || undefined }
+          : h
+      ),
+    }));
+    cancelNoteEdit();
+  }
+
+  const sortedHistory = useMemo(() => {
+    const list = [...(state?.history || [])];
+    if (historySort === 'oldest') {
+      return list.slice().reverse();
+    }
+    if (historySort === 'alpha') {
+      return list.sort((a, b) =>
+        (a.exercise || '').localeCompare(b.exercise || '')
+      );
+    }
+    return list; // 'newest' — already in newest-first order
+  }, [state?.history, historySort]);
 
   function skipCountdown() {
     setCountdown(null);
@@ -1712,6 +1753,41 @@ export default function DailyHundred() {
         </div>
       </div>
 
+      {editingEntry && (
+        <div style={styles.timerPromptOverlay} onClick={cancelNoteEdit}>
+          <div style={styles.noteEditCard} onClick={(e) => e.stopPropagation()}>
+            <div style={styles.noteEditTitle}>{editingEntry.exercise}</div>
+            <div style={styles.noteEditMeta}>
+              {new Date(editingEntry.date + 'T00:00:00').toLocaleDateString(undefined, {
+                month: 'long', day: 'numeric', year: 'numeric',
+              })}
+              {' · '}{editingEntry.reps} reps
+              {editingEntry.scheme && ` · ${editingEntry.scheme}`}
+              {editingEntry.duration != null && ` · ${formatDuration(editingEntry.duration)}`}
+            </div>
+            <div style={styles.noteEditLabel}>NOTES</div>
+            <textarea
+              value={noteDraft}
+              onChange={(e) => setNoteDraft(e.target.value)}
+              placeholder="Weight used, how it felt, what to try next time..."
+              style={styles.noteTextarea}
+              autoFocus
+              rows={5}
+            />
+            <div style={styles.noteEditButtons}>
+              <button
+                style={{ ...styles.ghostBtn, padding: '14px 0', fontSize: 13, letterSpacing: 1.5 }}
+                onClick={cancelNoteEdit}
+              >CANCEL</button>
+              <button
+                style={{ ...styles.primaryBtn, padding: '14px 0', fontSize: 13, letterSpacing: 1.5 }}
+                onClick={saveNote}
+              >SAVE</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {showTimerPrompt && (
         <div style={styles.timerPromptOverlay}>
           <div style={styles.timerPromptCard}>
@@ -1919,21 +1995,50 @@ export default function DailyHundred() {
                 <div style={styles.historySubtitle}>
                   {state.history.length === 0
                     ? 'No completed workouts yet'
-                    : `${state.history.length} completed workout${state.history.length === 1 ? '' : 's'}`}
+                    : `${state.history.length} completed workout${state.history.length === 1 ? '' : 's'} · tap any to add notes`}
                 </div>
               </div>
+              {state.history.length > 0 && (
+                <div style={styles.historySortRow}>
+                  {[
+                    { id: 'newest', label: 'NEWEST' },
+                    { id: 'oldest', label: 'OLDEST' },
+                    { id: 'alpha', label: 'A–Z' },
+                  ].map((opt) => {
+                    const active = historySort === opt.id;
+                    return (
+                      <button
+                        key={opt.id}
+                        onClick={() => setHistorySort(opt.id)}
+                        style={{
+                          ...styles.historySortBtn,
+                          background: active ? 'var(--text)' : 'var(--surface)',
+                          color: active ? 'var(--bg-solid)' : 'var(--text)',
+                          borderColor: active ? 'var(--text)' : 'var(--border)',
+                        }}
+                      >
+                        {opt.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
               <div style={styles.historyList}>
                 {state.history.length === 0 && (
                   <div style={styles.emptyHistory}>Finish today to start your log.</div>
                 )}
-                {state.history.map((h) => (
-                  <div key={h.date} style={styles.historyRow}>
+                {sortedHistory.map((h) => (
+                  <button
+                    key={h.date}
+                    onClick={() => openNoteEditor(h)}
+                    style={styles.historyRow}
+                  >
                     <div style={styles.historyDate}>
                       {new Date(h.date + 'T00:00:00').toLocaleDateString(undefined, {
                         month: 'short', day: 'numeric',
                       })}
                     </div>
-                    <div>
+                    <div style={{ minWidth: 0 }}>
                       <div style={styles.historyEx}>{h.exercise}</div>
                       <div style={styles.historyScheme}>
                         {h.scheme}{h.equipment ? ` · ${h.equipment.join(' / ')}` : ''}
@@ -1941,9 +2046,12 @@ export default function DailyHundred() {
                           <span style={styles.historyDuration}> · {formatDuration(h.duration)}</span>
                         )}
                       </div>
+                      {h.notes && (
+                        <div style={styles.historyNotePreview}>"{h.notes}"</div>
+                      )}
                     </div>
                     <div style={styles.historyReps}>{h.reps}</div>
-                  </div>
+                  </button>
                 ))}
               </div>
             </>
@@ -2691,10 +2799,19 @@ const styles = {
   statNum: { fontFamily: "'Archivo Black', sans-serif", fontSize: 30, lineHeight: 1, color: 'var(--accent)', textAlign: 'center' },
   statLabel: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, letterSpacing: 1.2, fontWeight: 700, color: 'var(--text-muted)', marginTop: 5, textAlign: 'center' },
   historyList: { display: 'flex', flexDirection: 'column', gap: 2 },
+  historySortRow: { display: 'flex', gap: 6, marginBottom: 12 },
+  historySortBtn: { flex: 1, fontFamily: "'JetBrains Mono', monospace", fontSize: 10, fontWeight: 700, letterSpacing: 1.5, padding: '10px 0', border: '1.5px solid var(--border)', cursor: 'pointer', borderRadius: 8, boxShadow: '0 1px 2px var(--shadow-xs)' },
+  historyNotePreview: { fontFamily: "'Inter', sans-serif", fontSize: 12, color: 'var(--text-muted)', fontStyle: 'italic', marginTop: 4, lineHeight: 1.4, overflow: 'hidden', textOverflow: 'ellipsis', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' },
+  noteEditCard: { width: '100%', maxWidth: 400, background: 'var(--surface)', border: '1.5px solid var(--border)', borderRadius: 22, padding: '24px 22px', boxShadow: '0 16px 40px var(--shadow-lg)' },
+  noteEditTitle: { fontFamily: "'Archivo Black', sans-serif", fontSize: 22, lineHeight: 1.05, letterSpacing: -0.4, color: 'var(--text)', marginBottom: 6 },
+  noteEditMeta: { fontFamily: "'JetBrains Mono', monospace", fontSize: 10, letterSpacing: 0.5, color: 'var(--text-muted)', marginBottom: 18, fontWeight: 700 },
+  noteEditLabel: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, letterSpacing: 1.5, fontWeight: 700, color: 'var(--text-muted)', marginBottom: 8 },
+  noteTextarea: { width: '100%', fontFamily: "'Inter', sans-serif", fontSize: 14, lineHeight: 1.5, padding: '12px 14px', border: '1.5px solid var(--border)', background: 'var(--surface-input)', color: 'var(--text)', borderRadius: 10, resize: 'vertical', minHeight: 100, marginBottom: 16 },
+  noteEditButtons: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 },
   historyHeader: { marginBottom: 16, paddingBottom: 12, borderBottom: '1.5px solid var(--border)' },
   historyTitle: { fontFamily: "'Archivo Black', sans-serif", fontSize: 22, color: 'var(--text)', letterSpacing: -0.3 },
   historySubtitle: { fontFamily: "'JetBrains Mono', monospace", fontSize: 10, letterSpacing: 1.5, color: 'var(--text-muted)', fontWeight: 700, marginTop: 5 },
-  historyRow: { display: 'grid', gridTemplateColumns: '70px 1fr 50px', alignItems: 'center', padding: '12px 0', borderBottom: '1px solid var(--border-soft)', fontSize: 13 },
+  historyRow: { display: 'grid', gridTemplateColumns: '70px 1fr 50px', alignItems: 'center', padding: '12px 4px', borderBottom: '1px solid var(--border-soft)', fontSize: 13, width: '100%', textAlign: 'left', background: 'transparent', border: 'none', borderBottom: '1px solid var(--border-soft)', cursor: 'pointer', fontFamily: 'inherit', color: 'inherit', borderRadius: 6, gap: 4 },
   historyDate: { fontFamily: "'JetBrains Mono', monospace", fontWeight: 700, fontSize: 11, color: 'var(--text-muted)', letterSpacing: 1 },
   historyEx: { fontWeight: 600, fontSize: 13 },
   historyScheme: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, letterSpacing: 1, color: 'var(--text-muted)', marginTop: 2 },
