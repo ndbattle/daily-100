@@ -1056,7 +1056,7 @@ export default function DailyHundred() {
       ...prev,
       history: prev.history.map((h) =>
         h.date === date
-          ? { ...h, notes: value.trim() || undefined }
+          ? { ...h, notes: value.trim() ? value : undefined }
           : h
       ),
     }));
@@ -1969,7 +1969,7 @@ export default function DailyHundred() {
   function renderSheet() {
     const activeBuiltinCount = BUILTIN_EXERCISES.length - state.disabledBuiltins.length;
     return (
-      <div style={styles.sheetOverlay} onClick={() => setShowSheet(false)}>
+      <div style={styles.sheetOverlay} onClick={() => { setShowSheet(false); setExpandedNote(null); }}>
         <div className="sheet-sized" style={styles.sheet} onClick={(e) => e.stopPropagation()}>
           <div style={styles.sheetHeader}>
             <div style={styles.tabs}>
@@ -1997,7 +1997,7 @@ export default function DailyHundred() {
                 >MOVES</button>
               )}
             </div>
-            <button style={styles.iconBtn} onClick={() => setShowSheet(false)}>✕</button>
+            <button style={styles.iconBtn} onClick={() => { setShowSheet(false); setExpandedNote(null); }}>✕</button>
           </div>
 
           {tab === 'log' && (
@@ -2915,7 +2915,6 @@ const styles = {
   timerValue: { fontFamily: "'Archivo Black', sans-serif", fontSize: 44, lineHeight: 1, color: 'var(--text)', letterSpacing: -0.5, fontVariantNumeric: 'tabular-nums' },
   timerControls: { display: 'flex', gap: 8, justifyContent: 'center', marginTop: 12 },
   timerCtrlBtn: { fontFamily: "'JetBrains Mono', monospace", fontSize: 10, fontWeight: 700, letterSpacing: 1.8, padding: '8px 16px', background: 'var(--surface)', color: 'var(--text)', border: '1.5px solid var(--border)', cursor: 'pointer', borderRadius: 8 },
-  timerPauseBtn: { marginTop: 12, fontFamily: "'JetBrains Mono', monospace", fontSize: 10, fontWeight: 700, letterSpacing: 1.8, padding: '8px 18px', background: 'var(--surface)', color: 'var(--text)', border: '1.5px solid var(--border)', cursor: 'pointer', borderRadius: 8 },
 
   // Timer prompt (before countdown)
   timerPromptOverlay: { position: 'fixed', inset: 0, background: 'var(--countdown-overlay)', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 96, padding: 28, animation: 'fadeIn 0.2s ease' },
@@ -2995,7 +2994,7 @@ const styles = {
   statNum: { fontFamily: "'Archivo Black', sans-serif", fontSize: 30, lineHeight: 1, color: 'var(--accent)', textAlign: 'center' },
   statLabel: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, letterSpacing: 1.2, fontWeight: 700, color: 'var(--text-muted)', marginTop: 5, textAlign: 'center' },
   historyList: { display: 'flex', flexDirection: 'column', gap: 2 },
-  historyRow: { display: 'grid', gridTemplateColumns: '70px 1fr 50px', alignItems: 'center', padding: '12px 4px', fontSize: 13, width: '100%', textAlign: 'left', background: 'transparent', border: 'none', borderBottom: '1px solid var(--border-soft)', cursor: 'pointer', fontFamily: 'inherit', color: 'inherit', gap: 4 },
+  historyRow: { display: 'grid', gridTemplateColumns: '70px 1fr 50px', alignItems: 'center', padding: '12px 4px', fontSize: 13, width: '100%', textAlign: 'left', background: 'transparent', border: 'none', borderBottom: '1px solid var(--border-soft)', cursor: 'pointer', fontFamily: 'inherit', color: 'inherit', borderRadius: 6, gap: 4 },
   historySortRow: { display: 'flex', gap: 6, marginBottom: 12 },
   historySortBtn: { flex: 1, fontFamily: "'JetBrains Mono', monospace", fontSize: 10, fontWeight: 700, letterSpacing: 1.5, padding: '10px 0', border: '1.5px solid var(--border)', cursor: 'pointer', borderRadius: 8, boxShadow: '0 1px 2px var(--shadow-xs)' },
   historyNotePreview: { fontFamily: "'Inter', sans-serif", fontSize: 12, color: 'var(--text-muted)', fontStyle: 'italic', marginTop: 4, lineHeight: 1.4, overflow: 'hidden', textOverflow: 'ellipsis', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' },
@@ -3008,25 +3007,9 @@ const styles = {
   notePopupLabel: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, letterSpacing: 1.5, fontWeight: 700, color: 'var(--text-muted)', marginBottom: 8 },
   notePopupTextarea: { width: '100%', fontFamily: "'Inter', sans-serif", fontSize: 14, lineHeight: 1.5, padding: '12px 14px', border: '1.5px solid var(--border)', background: 'var(--surface-input)', color: 'var(--text)', borderRadius: 10, resize: 'vertical', minHeight: 110, marginBottom: 14, boxShadow: '0 1px 2px var(--shadow-xs)' },
   notePopupDoneBtn: { width: '100%', fontFamily: "'JetBrains Mono', monospace", fontSize: 12, fontWeight: 700, letterSpacing: 1.5, padding: '13px 0', background: 'var(--text)', color: 'var(--bg-solid)', border: 'none', cursor: 'pointer', borderRadius: 10 },
-  noteEditCard: { width: '100%', maxWidth: 400, background: 'var(--surface)', border: '1.5px solid var(--border)', borderRadius: 22, padding: '24px 22px', boxShadow: '0 16px 40px var(--shadow-lg)' },
-
-  // Note editor full screen
-  noteScreenTitle: { fontFamily: "'Archivo Black', sans-serif", fontSize: 32, lineHeight: 1, letterSpacing: -0.8, color: 'var(--text)', margin: '0 0 8px' },
-  noteScreenMeta: { fontFamily: "'Inter', sans-serif", fontSize: 14, color: 'var(--text-muted)', fontWeight: 500, marginBottom: 6, lineHeight: 1.3 },
-  noteScreenStats: { fontFamily: "'JetBrains Mono', monospace", fontSize: 11, color: 'var(--text-muted)', fontWeight: 700, letterSpacing: 0.5, marginBottom: 24 },
-  noteScreenLabel: { fontFamily: "'JetBrains Mono', monospace", fontSize: 10, letterSpacing: 1.8, fontWeight: 700, color: 'var(--text-muted)', marginBottom: 10 },
-  noteScreenTextarea: { width: '100%', fontFamily: "'Inter', sans-serif", fontSize: 16, lineHeight: 1.6, padding: '16px 18px', border: '1.5px solid var(--border)', background: 'var(--surface)', color: 'var(--text)', borderRadius: 14, resize: 'none', minHeight: 240, marginBottom: 20, boxShadow: '0 1px 3px var(--shadow-sm)' },
-  noteScreenButtons: { display: 'grid', gridTemplateColumns: '1fr 2fr', gap: 10, marginBottom: 24 },
-  noteEditOverlay: { position: 'fixed', inset: 0, background: 'var(--countdown-overlay)', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 70, padding: 28, animation: 'fadeIn 0.2s ease' },
-  noteEditTitle: { fontFamily: "'Archivo Black', sans-serif", fontSize: 22, lineHeight: 1.05, letterSpacing: -0.4, color: 'var(--text)', marginBottom: 6 },
-  noteEditMeta: { fontFamily: "'JetBrains Mono', monospace", fontSize: 10, letterSpacing: 0.5, color: 'var(--text-muted)', marginBottom: 18, fontWeight: 700 },
-  noteEditLabel: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, letterSpacing: 1.5, fontWeight: 700, color: 'var(--text-muted)', marginBottom: 8 },
-  noteTextarea: { width: '100%', fontFamily: "'Inter', sans-serif", fontSize: 14, lineHeight: 1.5, padding: '12px 14px', border: '1.5px solid var(--border)', background: 'var(--surface-input)', color: 'var(--text)', borderRadius: 10, resize: 'vertical', minHeight: 100, marginBottom: 16 },
-  noteEditButtons: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 },
   historyHeader: { marginBottom: 16, paddingBottom: 12, borderBottom: '1.5px solid var(--border)' },
   historyTitle: { fontFamily: "'Archivo Black', sans-serif", fontSize: 22, color: 'var(--text)', letterSpacing: -0.3 },
   historySubtitle: { fontFamily: "'Inter', sans-serif", fontSize: 13, letterSpacing: 0, color: 'var(--text-muted)', fontWeight: 500, marginTop: 7, lineHeight: 1.4 },
-  historyRow: { display: 'grid', gridTemplateColumns: '70px 1fr 50px', alignItems: 'center', padding: '12px 4px', borderBottom: '1px solid var(--border-soft)', fontSize: 13, width: '100%', textAlign: 'left', background: 'transparent', border: 'none', borderBottom: '1px solid var(--border-soft)', cursor: 'pointer', fontFamily: 'inherit', color: 'inherit', borderRadius: 6, gap: 4 },
   historyDate: { fontFamily: "'JetBrains Mono', monospace", fontWeight: 700, fontSize: 11, color: 'var(--text-muted)', letterSpacing: 1 },
   historyEx: { fontWeight: 600, fontSize: 13 },
   historyScheme: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, letterSpacing: 1, color: 'var(--text-muted)', marginTop: 2 },
