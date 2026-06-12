@@ -179,7 +179,7 @@ export const COOLDOWN_EXERCISES = [
   { name: 'NECK STRETCH', tip: 'Ear to shoulder slowly. Hand can gently guide.', duration: 'each side · 30 sec' },
   { name: 'STANDING QUAD STRETCH', tip: 'Pull foot toward glute. Knees together, hips forward.', duration: 'each side · 30 sec' },
   { name: 'STANDING CALF STRETCH', tip: 'Step one foot back. Heel down. Press into the calf.', duration: 'each side · 30 sec' },
-  { name: 'SIMPLY BREATHE', tip: 'Close your eyes and clear your mind.', duration: 60 seconds' },
+  { name: 'SIMPLY BREATHE', tip: 'Close your eyes and clear your mind.', duration: '60 seconds' },
   // Add your cooldown exercises here
 ];
 
