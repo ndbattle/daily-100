@@ -197,6 +197,7 @@ const DEFAULT_STATE = {
   disabledBuiltins: [],
   adminMode: false,
   theme: 'auto', // 'light' | 'dark' | 'auto'
+  revealedDate: null, // last date the dramatic reveal played
 };
 
 function Fireworks() {
@@ -433,7 +434,12 @@ export default function DailyHundred() {
   const [showTimerPrompt, setShowTimerPrompt] = useState(false);
   const [tickNow, setTickNow] = useState(Date.now());
   const [historySort, setHistorySort] = useState('newest');
-  const [expandedNote, setExpandedNote] = useState(null); // date of the expanded row
+  const [expandedNote, setExpandedNote] = useState(null);
+  const [revealActive, setRevealActive] = useState(false);
+  const [revealName, setRevealName] = useState('');
+  const [revealLanded, setRevealLanded] = useState(false);
+  const revealTimeouts = useRef([]);
+  const revealPickedRef = useRef(null); // date of the expanded row
 
   // Home-page pending selections (not persisted until START)
   const [pendingTarget, setPendingTarget] = useState(100);
@@ -793,13 +799,53 @@ export default function DailyHundred() {
     setState({ ...state, squads: state.squads.filter((s) => s.id !== squadId) });
   }
 
-  function startSession() {
-    if (!pendingEquipment.length) return;
-    const pool = buildPool(state.customExercises, state.disabledBuiltins, pendingEquipment, state.history);
-    if (!pool.length) return;
-    const picked = pool[hashStr(TODAY() + pendingEquipment.join('-')) % pool.length];
-    setState({
-      ...state,
+  function clearRevealTimeouts() {
+    revealTimeouts.current.forEach((id) => clearTimeout(id));
+    revealTimeouts.current = [];
+  }
+
+  function runRevealSequence(pool, picked) {
+    // Slot machine: names tick by, slowing dramatically, landing on picked
+    // Total ~2.5s of cycling + 1.1s hold on landed = ~3.6s end-to-end
+    const delays = [60, 60, 60, 80, 80, 100, 130, 170, 220, 290, 380, 500, 700, 1000];
+    let cumulative = 0;
+    delays.forEach((delay, i) => {
+      cumulative += delay;
+      const isLast = i === delays.length - 1;
+      const id = setTimeout(() => {
+        if (isLast) {
+          // Landing moment — picked exercise, big haptic, flash + scale
+          setRevealName(picked.name);
+          setRevealLanded(true);
+          try {
+            if (typeof navigator !== 'undefined' && navigator.vibrate) {
+              navigator.vibrate([80, 60, 80, 60, 250]);
+            }
+          } catch {}
+        } else {
+          // Cycle: pick a random pool name and a small haptic tick
+          const randomEx = pool[Math.floor(Math.random() * pool.length)];
+          setRevealName(randomEx.name);
+          try {
+            if (typeof navigator !== 'undefined' && navigator.vibrate) {
+              navigator.vibrate(12);
+            }
+          } catch {}
+        }
+      }, cumulative);
+      revealTimeouts.current.push(id);
+    });
+    // After hold on the landed name, commit the session
+    const commitId = setTimeout(() => commitSession(picked, true), cumulative + 1100);
+    revealTimeouts.current.push(commitId);
+  }
+
+  function commitSession(picked, fromReveal) {
+    clearRevealTimeouts();
+    setRevealActive(false);
+    setRevealLanded(false);
+    setState((prev) => ({
+      ...prev,
       target: pendingTarget,
       equipment: pendingEquipment,
       sessionStarted: true,
@@ -811,10 +857,48 @@ export default function DailyHundred() {
       setsDone: [],
       schemeId: 'free',
       todayExercise: picked,
-      // swapIndex deliberately NOT reset here — limit is 2 per 24 hours,
-      // persists across going back to home and entering a new session.
-      // The day rollover (see load effect) resets it daily.
-    });
+      revealedDate: fromReveal ? TODAY() : prev.revealedDate,
+    }));
+  }
+
+  function skipReveal() {
+    const picked = revealPickedRef.current;
+    if (!picked) return;
+    clearRevealTimeouts();
+    setRevealName(picked.name);
+    setRevealLanded(true);
+    try {
+      if (typeof navigator !== 'undefined' && navigator.vibrate) {
+        navigator.vibrate([60, 50, 200]);
+      }
+    } catch {}
+    const id = setTimeout(() => commitSession(picked, true), 700);
+    revealTimeouts.current.push(id);
+  }
+
+  function startSession() {
+    if (!pendingEquipment.length) return;
+    const pool = buildPool(state.customExercises, state.disabledBuiltins, pendingEquipment, state.history);
+    if (!pool.length) return;
+    const picked = pool[hashStr(TODAY() + pendingEquipment.join('-')) % pool.length];
+
+    // If user already saw today's reveal, skip straight to workout
+    if (state.revealedDate === TODAY()) {
+      commitSession(picked, false);
+      return;
+    }
+
+    // Start the dramatic slot machine reveal
+    revealPickedRef.current = picked;
+    setRevealLanded(false);
+    setRevealName(pool[Math.floor(Math.random() * pool.length)].name);
+    setRevealActive(true);
+    try {
+      if (typeof navigator !== 'undefined' && navigator.vibrate) {
+        navigator.vibrate(25);
+      }
+    } catch {}
+    runRevealSequence(pool, picked);
   }
 
   function startWarmup() {
@@ -1196,6 +1280,41 @@ export default function DailyHundred() {
   const dateLabel = new Date(state.date + 'T00:00:00').toLocaleDateString(undefined, {
     weekday: 'long', month: 'short', day: 'numeric',
   });
+
+  // ---------------- DAILY REVEAL SCREEN (slot machine) ----------------
+  if (revealActive) {
+    return (
+      <div style={styles.shell}>
+        <style>{cssText}</style>
+        <div
+          style={{
+            ...styles.revealOverlay,
+            ...(revealLanded ? styles.revealOverlayLanded : {}),
+          }}
+          onClick={skipReveal}
+        >
+          <div style={styles.revealInner}>
+            <div style={styles.revealLabel}>TODAY'S MOVEMENT</div>
+            <div
+              key={revealName /* re-mounts on each name change for animation */}
+              style={{
+                ...styles.revealName,
+                ...(revealLanded ? styles.revealNameLanded : {}),
+              }}
+            >
+              {revealName}
+            </div>
+            <div style={styles.revealEquipChip}>
+              {(pendingEquipment || []).map((e) => e.toUpperCase()).join(' · ')}
+            </div>
+            {!revealLanded && (
+              <div style={styles.revealSkipHint}>TAP TO SKIP</div>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   // ---------------- WARMUP SCREEN ----------------
   if (warmupActive) {
@@ -2602,6 +2721,22 @@ html { background: var(--bg-solid); }
 }
 @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes revealNameIn {
+  0% { opacity: 0; transform: translateY(8px) scale(0.94); }
+  60% { opacity: 1; }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes revealLandedPop {
+  0% { transform: scale(0.85); opacity: 0.7; }
+  45% { transform: scale(1.22); opacity: 1; }
+  80% { transform: scale(1.04); }
+  100% { transform: scale(1.1); }
+}
+@keyframes revealFlash {
+  0% { box-shadow: 0 0 0 0 rgba(232, 68, 47, 0); }
+  35% { box-shadow: 0 0 220px 80px rgba(232, 68, 47, 0.5) inset; }
+  100% { box-shadow: 0 0 0 0 rgba(232, 68, 47, 0); }
+}
 @keyframes pulse { 0%, 100% { opacity: 0.4; transform: scale(0.85); } 50% { opacity: 1; transform: scale(1.1); } }
 @keyframes screenShake {
   0%, 100% { transform: translate3d(0, 0, 0); }
@@ -2689,6 +2824,16 @@ const styles = {
     padding: '24px 18px 48px',
   },
   frame: { maxWidth: 480, margin: '0 auto' },
+
+  // Daily reveal slot machine
+  revealOverlay: { position: 'fixed', inset: 0, background: 'radial-gradient(circle at center, rgba(232, 68, 47, 0.10) 0%, var(--bg-solid) 60%)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200, padding: 24, cursor: 'pointer', animation: 'fadeIn 0.35s ease', WebkitTapHighlightColor: 'transparent' },
+  revealOverlayLanded: { background: 'radial-gradient(circle at center, rgba(232, 68, 47, 0.32) 0%, var(--bg-solid) 70%)', animation: 'revealFlash 0.6s ease-out' },
+  revealInner: { textAlign: 'center', maxWidth: 480, width: '100%', padding: '0 8px' },
+  revealLabel: { fontFamily: "'JetBrains Mono', monospace", fontSize: 11, letterSpacing: 3, fontWeight: 700, color: 'var(--accent)', marginBottom: 36, opacity: 0.9 },
+  revealName: { fontFamily: "'Archivo Black', sans-serif", fontSize: 'clamp(36px, 9vw, 60px)', lineHeight: 0.95, letterSpacing: -1.2, color: 'var(--text)', marginBottom: 28, minHeight: 110, display: 'flex', alignItems: 'center', justifyContent: 'center', animation: 'revealNameIn 0.12s ease-out', padding: '0 4px', wordBreak: 'break-word' },
+  revealNameLanded: { color: 'var(--accent)', animation: 'revealLandedPop 0.65s cubic-bezier(0.34, 1.56, 0.64, 1)', textShadow: '0 0 36px rgba(232, 68, 47, 0.45)' },
+  revealEquipChip: { display: 'inline-block', fontFamily: "'JetBrains Mono', monospace", fontSize: 11, letterSpacing: 1.8, fontWeight: 700, color: 'var(--text-muted)', padding: '7px 16px', border: '1.5px solid var(--border)', borderRadius: 999, marginBottom: 44 },
+  revealSkipHint: { fontFamily: "'JetBrains Mono', monospace", fontSize: 10, letterSpacing: 2, color: 'var(--text-muted)', opacity: 0.45, fontWeight: 700 },
   headerRow: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 18 },
   kicker: { fontFamily: "'JetBrains Mono', monospace", fontSize: 10, letterSpacing: 1.8, color: 'var(--text-muted)', marginBottom: 14, fontWeight: 700 },
   welcomeLine: { fontFamily: "'Archivo Black', sans-serif", fontSize: 16, letterSpacing: -0.3, color: 'var(--text)', marginBottom: 6, lineHeight: 1.1 },
