@@ -3,7 +3,7 @@ import { getAuth } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 
 const firebaseConfig = {
-  apiKey: 'AIzaSyDFWFRaoKLgTJyCB7QQVRIQIDBG_U_7Lo0',
+  apiKey: 'AIzaSyBhvKKSks3zjyYnULM4KBJTbbK833Kw2zQ',
   authDomain: 'daily-100.firebaseapp.com',
   projectId: 'daily-100',
   storageBucket: 'daily-100.firebasestorage.app',
