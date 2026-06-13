@@ -210,21 +210,6 @@ const DEFAULT_STATE = {
   revealedDate: null, // last date the dramatic reveal played
 };
 
-// Decide which progress to keep when a user logs in on a device that also has
-// local progress. We keep whichever has the higher streak / more history, so a
-// returning tester never loses their existing run when they first make an account.
-function mergeProgress(cloud, local) {
-  // No cloud doc yet → this is the user's first login; adopt local progress.
-  if (!cloud) return { ...DEFAULT_STATE, ...local };
-  // No meaningful local progress → just use cloud.
-  const localScore = (local?.history?.length || 0) + (local?.bestStreak || 0);
-  const cloudScore = (cloud?.history?.length || 0) + (cloud?.bestStreak || 0);
-  const base = cloudScore >= localScore ? cloud : local;
-  // Always carry the best-ever streak across both, just in case.
-  const bestStreak = Math.max(cloud?.bestStreak || 0, local?.bestStreak || 0);
-  return { ...DEFAULT_STATE, ...base, bestStreak };
-}
-
 // Fields we don't persist to the cloud (UI-only or device-only).
 function cloudSafe(s) {
   if (!s) return {};
@@ -588,21 +573,26 @@ export default function DailyHundred() {
         const snap = await getDoc(ref);
         const cloud = snap.exists() ? snap.data() : null;
         setState((prev) => {
-          const local = cloudSafe(prev || DEFAULT_STATE);
-          let merged = mergeProgress(cloud, local);
-          merged = applyDayRollover(merged);
-          merged.user = profile;
+          // No migration: a returning user loads their cloud doc; a brand-new
+          // account starts completely fresh (ignoring any local device data),
+          // so new users never inherit a stray streak or workout history.
+          let loaded = cloud
+            ? { ...DEFAULT_STATE, ...cloud }
+            : { ...DEFAULT_STATE };
+          loaded = applyDayRollover(loaded);
+          loaded.user = profile;
           // Keep pending selections aligned with whatever we loaded.
-          setPendingTarget(merged.target || 100);
-          setPendingEquipment(merged.equipment && merged.equipment.length ? merged.equipment : ['bodyweight']);
-          return merged;
+          setPendingTarget(loaded.target || 100);
+          setPendingEquipment(loaded.equipment && loaded.equipment.length ? loaded.equipment : ['bodyweight']);
+          return loaded;
         });
         cloudLoadedRef.current = true;
-        // The debounced save effect will persist the merged result to the cloud
+        // The debounced save effect will persist the loaded result to the cloud
         // now that cloudLoadedRef is true and state has updated.
       } catch {
-        // Offline or rules issue: still let them in with local state + identity.
-        setState((prev) => ({ ...(prev || DEFAULT_STATE), user: profile }));
+        // Offline or rules issue: still let them in with identity. Start clean
+        // rather than exposing any local-only data under the new account.
+        setState((prev) => ({ ...DEFAULT_STATE, user: profile }));
         cloudLoadedRef.current = true;
       }
       setLoading(false);
