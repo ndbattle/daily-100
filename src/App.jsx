@@ -1,5 +1,15 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { BUILTIN_EXERCISES, WARMUP_EXERCISES, COOLDOWN_EXERCISES } from './exercises';
+import { auth, db } from './firebase';
+import {
+  onAuthStateChanged,
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+  signOut as fbSignOut,
+  updateProfile,
+  sendPasswordResetEmail,
+} from 'firebase/auth';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
 
 const EQUIPMENT_OPTIONS = [
   { id: 'bodyweight', label: 'BODYWEIGHT' },
@@ -199,6 +209,52 @@ const DEFAULT_STATE = {
   theme: 'auto', // 'light' | 'dark' | 'auto'
   revealedDate: null, // last date the dramatic reveal played
 };
+
+// Decide which progress to keep when a user logs in on a device that also has
+// local progress. We keep whichever has the higher streak / more history, so a
+// returning tester never loses their existing run when they first make an account.
+function mergeProgress(cloud, local) {
+  // No cloud doc yet → this is the user's first login; adopt local progress.
+  if (!cloud) return { ...DEFAULT_STATE, ...local };
+  // No meaningful local progress → just use cloud.
+  const localScore = (local?.history?.length || 0) + (local?.bestStreak || 0);
+  const cloudScore = (cloud?.history?.length || 0) + (cloud?.bestStreak || 0);
+  const base = cloudScore >= localScore ? cloud : local;
+  // Always carry the best-ever streak across both, just in case.
+  const bestStreak = Math.max(cloud?.bestStreak || 0, local?.bestStreak || 0);
+  return { ...DEFAULT_STATE, ...base, bestStreak };
+}
+
+// Fields we don't persist to the cloud (UI-only or device-only).
+function cloudSafe(s) {
+  if (!s) return {};
+  const { user, ...rest } = s; // identity comes from Firebase, not the doc
+  return rest;
+}
+
+// Reset the per-day fields if the saved date isn't today (used on both local
+// load and cloud load so a streak expires correctly regardless of source).
+function applyDayRollover(saved) {
+  if (saved.date !== TODAY()) {
+    if (saved.lastCompletedDate) {
+      const gap = daysBetween(saved.lastCompletedDate, TODAY());
+      if (gap > 1) saved.streak = 0;
+    } else {
+      saved.streak = 0;
+    }
+    saved.reps = 0;
+    saved.setsDone = [];
+    saved.schemeId = 'free';
+    saved.date = TODAY();
+    saved.swapIndex = 0;
+    saved.todayExercise = null;
+    saved.sessionStarted = false;
+    saved.workoutStarted = false;
+  }
+  return saved;
+}
+
+
 
 function Fireworks() {
   const canvasRef = useRef(null);
@@ -450,6 +506,13 @@ export default function DailyHundred() {
   const [authName, setAuthName] = useState('');
   const [authPassword, setAuthPassword] = useState('');
   const [authError, setAuthError] = useState('');
+  const [authBusy, setAuthBusy] = useState(false);
+  const [authNotice, setAuthNotice] = useState('');
+
+  // Firebase sync internals
+  const fbUidRef = useRef(null);        // current signed-in Firebase uid, or null
+  const cloudLoadedRef = useRef(false); // have we loaded this user's cloud doc yet?
+  const saveTimerRef = useRef(null);    // debounce handle for cloud writes
 
   // Friends UI
   const [friendsView, setFriendsView] = useState('friends'); // 'friends' | 'requests' | 'find' | 'squads'
@@ -487,23 +550,10 @@ export default function DailyHundred() {
         ? window.localStorage.getItem('daily100-state')
         : null;
       let saved = raw ? { ...DEFAULT_STATE, ...JSON.parse(raw) } : { ...DEFAULT_STATE };
-
-      if (saved.date !== TODAY()) {
-        if (saved.lastCompletedDate) {
-          const gap = daysBetween(saved.lastCompletedDate, TODAY());
-          if (gap > 1) saved.streak = 0;
-        } else {
-          saved.streak = 0;
-        }
-        saved.reps = 0;
-        saved.setsDone = [];
-        saved.schemeId = 'free';
-        saved.date = TODAY();
-        saved.swapIndex = 0;
-        saved.todayExercise = null;
-        saved.sessionStarted = false; // back to home each day
-        saved.workoutStarted = false;
-      }
+      saved = applyDayRollover(saved);
+      // Firebase is the source of truth for identity. Don't trust a stale
+      // logged-in user from localStorage — the auth listener sets it.
+      saved.user = null;
 
       setState(saved);
       setPendingTarget(saved.target || 100);
@@ -511,9 +561,56 @@ export default function DailyHundred() {
     } catch {
       setState({ ...DEFAULT_STATE });
     }
-    setLoading(false);
+    // Note: setLoading(false) happens in the auth listener below, once we know
+    // whether a user is already signed in.
   }, []);
 
+  // ---- Firebase auth listener: drives login/logout + cloud load/migration ----
+  useEffect(() => {
+    const unsub = onAuthStateChanged(auth, async (fbUser) => {
+      if (!fbUser) {
+        // Signed out: clear identity, keep local-only state on device.
+        fbUidRef.current = null;
+        cloudLoadedRef.current = false;
+        setState((prev) => (prev ? { ...prev, user: null } : prev));
+        setLoading(false);
+        return;
+      }
+      fbUidRef.current = fbUser.uid;
+      const profile = {
+        provider: 'email',
+        name: fbUser.displayName || (fbUser.email ? fbUser.email.split('@')[0] : 'Athlete'),
+        email: fbUser.email || '',
+        uid: fbUser.uid,
+      };
+      try {
+        const ref = doc(db, 'users', fbUser.uid);
+        const snap = await getDoc(ref);
+        const cloud = snap.exists() ? snap.data() : null;
+        setState((prev) => {
+          const local = cloudSafe(prev || DEFAULT_STATE);
+          let merged = mergeProgress(cloud, local);
+          merged = applyDayRollover(merged);
+          merged.user = profile;
+          // Keep pending selections aligned with whatever we loaded.
+          setPendingTarget(merged.target || 100);
+          setPendingEquipment(merged.equipment && merged.equipment.length ? merged.equipment : ['bodyweight']);
+          return merged;
+        });
+        cloudLoadedRef.current = true;
+        // The debounced save effect will persist the merged result to the cloud
+        // now that cloudLoadedRef is true and state has updated.
+      } catch {
+        // Offline or rules issue: still let them in with local state + identity.
+        setState((prev) => ({ ...(prev || DEFAULT_STATE), user: profile }));
+        cloudLoadedRef.current = true;
+      }
+      setLoading(false);
+    });
+    return () => unsub();
+  }, []);
+
+  // Persist to localStorage (offline fallback) on every state change.
   useEffect(() => {
     if (!state) return;
     try {
@@ -523,6 +620,23 @@ export default function DailyHundred() {
     } catch {
       // localStorage might be full or disabled — fail silently
     }
+  }, [state]);
+
+  // Persist to Firestore (debounced) whenever state changes and a user is loaded.
+  useEffect(() => {
+    if (!state || !fbUidRef.current || !cloudLoadedRef.current) return;
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    saveTimerRef.current = setTimeout(async () => {
+      try {
+        const ref = doc(db, 'users', fbUidRef.current);
+        await setDoc(ref, cloudSafe(state), { merge: true });
+      } catch {
+        // Network hiccup — localStorage already has it; next change retries.
+      }
+    }, 1200);
+    return () => {
+      if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    };
   }, [state]);
 
   // Apply theme to document root so CSS variables cascade everywhere
@@ -684,22 +798,36 @@ export default function DailyHundred() {
   }
 
   // Auth handlers (UI scaffolding — wire to a real provider later)
-  function signInWith(provider) {
-    setState({
-      ...state,
-      user: {
-        provider,
-        name: provider === 'apple' ? 'Apple User' : 'Google User',
-        email: `you@${provider}.com`,
-      },
-      incomingRequests: state.incomingRequests.length ? state.incomingRequests : SEED_INCOMING,
-    });
-    setAuthError('');
+  function friendlyAuthError(code) {
+    switch (code) {
+      case 'auth/email-already-in-use': return 'That email already has an account. Try signing in.';
+      case 'auth/invalid-email': return 'That email address looks invalid.';
+      case 'auth/weak-password': return 'Password must be at least 6 characters.';
+      case 'auth/invalid-credential':
+      case 'auth/wrong-password':
+      case 'auth/user-not-found': return 'Email or password is incorrect.';
+      case 'auth/too-many-requests': return 'Too many attempts. Wait a moment and try again.';
+      case 'auth/network-request-failed': return 'Network error. Check your connection.';
+      default: return 'Something went wrong. Please try again.';
+    }
   }
-  function submitEmailAuth() {
+
+  function signInWith(provider) {
+    // Apple/Google providers are deferred to a later phase. For now, nudge to email.
+    setAuthError('');
+    setAuthNotice(
+      provider === 'apple'
+        ? 'Apple sign-in is coming soon. Use email for now.'
+        : 'Google sign-in is coming soon. Use email for now.'
+    );
+    setAuthMode('email-signup');
+  }
+
+  async function submitEmailAuth() {
     const email = authEmail.trim().toLowerCase();
     const name = authName.trim();
     const pwd = authPassword;
+    setAuthNotice('');
     if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       setAuthError('Enter a valid email address.');
       return;
@@ -712,23 +840,57 @@ export default function DailyHundred() {
       setAuthError('Enter your name.');
       return;
     }
-    setState({
-      ...state,
-      user: {
-        provider: 'email',
-        name: name || email.split('@')[0],
-        email,
-      },
-      incomingRequests: state.incomingRequests.length ? state.incomingRequests : SEED_INCOMING,
-    });
-    setAuthEmail(''); setAuthName(''); setAuthPassword(''); setAuthError('');
-    setAuthMode('options');
+    setAuthBusy(true);
+    setAuthError('');
+    try {
+      if (authMode === 'email-signup') {
+        const cred = await createUserWithEmailAndPassword(auth, email, pwd);
+        if (name) {
+          try { await updateProfile(cred.user, { displayName: name }); } catch {}
+        }
+      } else {
+        await signInWithEmailAndPassword(auth, email, pwd);
+      }
+      // The onAuthStateChanged listener handles loading state + cloud merge.
+      setAuthEmail(''); setAuthName(''); setAuthPassword('');
+      setAuthMode('options');
+    } catch (e) {
+      setAuthError(friendlyAuthError(e && e.code));
+    } finally {
+      setAuthBusy(false);
+    }
   }
-  function signOut() {
-    if (!window.confirm('Sign out? Your progress stays saved on this device.')) return;
-    setState({ ...state, user: null, sessionStarted: false });
-    setAuthMode('options');
+
+  async function sendReset() {
+    const email = authEmail.trim().toLowerCase();
+    setAuthNotice('');
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      setAuthError('Enter your email above first, then tap reset.');
+      return;
+    }
+    setAuthBusy(true);
+    setAuthError('');
+    try {
+      await sendPasswordResetEmail(auth, email);
+      setAuthNotice('Password reset email sent. Check your inbox.');
+    } catch (e) {
+      setAuthError(friendlyAuthError(e && e.code));
+    } finally {
+      setAuthBusy(false);
+    }
   }
+
+  async function signOut() {
+    if (!window.confirm('Sign out? Your progress is saved to your account.')) return;
+    try {
+      await fbSignOut(auth);
+    } catch { /* listener will still clear identity if it can */ }
+    setState((prev) => ({ ...prev, user: null, sessionStarted: false }));
+    setAuthMode('options');
+    setAuthNotice('');
+    setAuthError('');
+  }
+
 
   function resetStreak() {
     if (!window.confirm('Reset your streak to 0?\n\nYour best streak, medals, and workout history will stay — only the current streak counter resets.')) return;
@@ -1208,6 +1370,7 @@ export default function DailyHundred() {
               <button style={styles.authTextLink} onClick={() => { setAuthMode('email-signin'); setAuthError(''); }}>
                 Already have an account? Sign in
               </button>
+              {authNotice && <div style={styles.authNoticeText}>{authNotice}</div>}
               <div style={styles.authFinePrint}>
                 By continuing, you agree to break a sweat.
               </div>
@@ -1250,14 +1413,31 @@ export default function DailyHundred() {
                 autoComplete={authMode === 'email-signup' ? 'new-password' : 'current-password'}
               />
               {authError && <div style={styles.authErrorText}>{authError}</div>}
-              <button style={styles.authSubmitBtn} onClick={submitEmailAuth}>
-                {authMode === 'email-signup' ? 'CREATE ACCOUNT' : 'SIGN IN'} →
+              {authNotice && <div style={styles.authNoticeText}>{authNotice}</div>}
+              <button
+                style={{ ...styles.authSubmitBtn, opacity: authBusy ? 0.6 : 1 }}
+                onClick={submitEmailAuth}
+                disabled={authBusy}
+              >
+                {authBusy
+                  ? 'WORKING…'
+                  : `${authMode === 'email-signup' ? 'CREATE ACCOUNT' : 'SIGN IN'} →`}
               </button>
+              {authMode === 'email-signin' && (
+                <button
+                  style={styles.authTextLink}
+                  onClick={sendReset}
+                  disabled={authBusy}
+                >
+                  Forgot password?
+                </button>
+              )}
               <button
                 style={styles.authTextLink}
                 onClick={() => {
                   setAuthMode(authMode === 'email-signup' ? 'email-signin' : 'email-signup');
                   setAuthError('');
+                  setAuthNotice('');
                 }}
               >
                 {authMode === 'email-signup'
@@ -3063,6 +3243,7 @@ const styles = {
   authLabel: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, letterSpacing: 1.5, fontWeight: 700, color: 'var(--text-muted)', marginBottom: 6, marginTop: 4 },
   authInput: { width: '100%', fontFamily: 'inherit', fontSize: 15, padding: '13px 15px', border: '1.5px solid var(--border)', background: 'var(--bg-solid)', marginBottom: 14, borderRadius: 10 },
   authErrorText: { color: 'var(--accent)', fontFamily: "'JetBrains Mono', monospace", fontSize: 11, fontWeight: 700, marginBottom: 12 },
+  authNoticeText: { color: 'var(--text-muted)', fontFamily: "'JetBrains Mono', monospace", fontSize: 11, fontWeight: 700, marginTop: 12, marginBottom: 4, lineHeight: 1.4 },
   authSubmitBtn: { width: '100%', padding: '17px 0', background: 'var(--text)', color: 'var(--surface)', border: 'none', fontFamily: "'Archivo Black', sans-serif", fontSize: 14, letterSpacing: 1, cursor: 'pointer', borderRadius: 14, boxShadow: '0 4px 14px var(--shadow-charcoal)' },
 
   // Friends UI
