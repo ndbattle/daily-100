@@ -2849,10 +2849,10 @@ html[data-theme="dark"] {
   --text-faint: #6a6058;
   --surface: #221b15;
   --surface-muted: #1a1410;
-  --surface-input: #1a1410;
+  --surface-input: #312820;
   --border: #332a23;
   --border-soft: #2a221d;
-  --border-input: #3d342c;
+  --border-input: #4a3f35;
   --divider: #2a221d;
   --accent: #e8442f;
   --accent-light: #f25138;
@@ -2981,6 +2981,9 @@ input { font-family: inherit; transition: border-color 0.15s ease, box-shadow 0.
 input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(232,68,47,0.15); }
 ::-webkit-scrollbar { width: 8px; height: 8px; }
 ::-webkit-scrollbar-thumb { background: var(--scrollbar); border-radius: 4px; }
+input, textarea { color: var(--text); -webkit-text-fill-color: var(--text); caret-color: var(--accent); }
+input::placeholder, textarea::placeholder { color: var(--text-muted); opacity: 1; }
+input::-webkit-input-placeholder, textarea::-webkit-input-placeholder { color: var(--text-muted); opacity: 1; }
 @supports (height: 100dvh) {
   .sheet-sized { min-height: 75dvh !important; max-height: 88dvh !important; }
 }
@@ -3198,10 +3201,10 @@ const styles = {
   addForm: { border: '1.5px solid var(--border)', padding: 18, marginBottom: 24, background: 'var(--surface)', borderRadius: 14 },
   formLabel: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, letterSpacing: 1.5, fontWeight: 700, color: 'var(--text-muted)', marginBottom: 6 },
   formHelp: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: 'var(--text-muted)', marginTop: -8, marginBottom: 12, fontStyle: 'italic' },
-  nameInput: { fontFamily: "'Archivo Black', sans-serif", fontSize: 18, padding: '11px 14px', border: '1.5px solid var(--border)', background: 'var(--bg-solid)', letterSpacing: 0.5, textTransform: 'uppercase', borderRadius: 10 },
+  nameInput: { fontFamily: "'Archivo Black', sans-serif", fontSize: 18, padding: '11px 14px', border: '1.5px solid var(--border-input)', background: 'var(--surface-input)', color: 'var(--text)', letterSpacing: 0.5, textTransform: 'uppercase', borderRadius: 10 },
   formEquipRow: { display: 'flex', gap: 6, marginBottom: 14, flexWrap: 'wrap' },
   formEquipChip: { padding: '9px 12px', border: '1.5px solid var(--border)', fontFamily: "'JetBrains Mono', monospace", fontSize: 10, fontWeight: 700, letterSpacing: 1, cursor: 'pointer', borderRadius: 8 },
-  tipInput: { width: '100%', fontSize: 14, padding: '11px 14px', border: '1.5px solid var(--border)', background: 'var(--bg-solid)', marginBottom: 12, borderRadius: 10 },
+  tipInput: { width: '100%', fontSize: 14, padding: '11px 14px', border: '1.5px solid var(--border-input)', background: 'var(--surface-input)', color: 'var(--text)', marginBottom: 12, borderRadius: 10 },
   formButtons: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 },
   errorText: { color: 'var(--accent)', fontFamily: "'JetBrains Mono', monospace", fontSize: 11, fontWeight: 700, marginBottom: 10 },
 
@@ -3231,7 +3234,7 @@ const styles = {
   authForm: { background: 'var(--surface)', border: '1.5px solid var(--border)', borderRadius: 18, padding: 22, marginBottom: 12, boxShadow: '0 2px 12px var(--shadow-sm)' },
   authFormTitle: { fontFamily: "'Archivo Black', sans-serif", fontSize: 22, marginBottom: 16, letterSpacing: -0.3 },
   authLabel: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, letterSpacing: 1.5, fontWeight: 700, color: 'var(--text-muted)', marginBottom: 6, marginTop: 4 },
-  authInput: { width: '100%', fontFamily: 'inherit', fontSize: 15, padding: '13px 15px', border: '1.5px solid var(--border)', background: 'var(--bg-solid)', marginBottom: 14, borderRadius: 10 },
+  authInput: { width: '100%', fontFamily: 'inherit', fontSize: 15, padding: '13px 15px', border: '1.5px solid var(--border-input)', background: 'var(--surface-input)', color: 'var(--text)', marginBottom: 14, borderRadius: 10 },
   authErrorText: { color: 'var(--accent)', fontFamily: "'JetBrains Mono', monospace", fontSize: 11, fontWeight: 700, marginBottom: 12 },
   authNoticeText: { color: 'var(--text-muted)', fontFamily: "'JetBrains Mono', monospace", fontSize: 11, fontWeight: 700, marginTop: 12, marginBottom: 4, lineHeight: 1.4 },
   authSubmitBtn: { width: '100%', padding: '17px 0', background: 'var(--text)', color: 'var(--surface)', border: 'none', fontFamily: "'Archivo Black', sans-serif", fontSize: 14, letterSpacing: 1, cursor: 'pointer', borderRadius: 14, boxShadow: '0 4px 14px var(--shadow-charcoal)' },
