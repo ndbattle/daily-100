@@ -2760,11 +2760,17 @@ export default function DailyHundred() {
             <div
               style={styles.notePopupOverlay}
               onClick={(e) => {
-                e.stopPropagation();
-                setExpandedNote(null);
+                // Only close when the backdrop itself is tapped, not when a tap
+                // bubbles up from the card/textarea (which breaks typing on mobile).
+                if (e.target === e.currentTarget) setExpandedNote(null);
               }}
             >
-              <div style={styles.notePopupCard} onClick={(e) => e.stopPropagation()}>
+              <div
+                style={styles.notePopupCard}
+                onClick={(e) => e.stopPropagation()}
+                onTouchStart={(e) => e.stopPropagation()}
+                onTouchMove={(e) => e.stopPropagation()}
+              >
                 <div style={styles.notePopupTitle}>{entry.exercise}</div>
                 <div style={styles.notePopupMeta}>
                   {new Date(entry.date + 'T00:00:00').toLocaleDateString(undefined, {
@@ -2777,6 +2783,7 @@ export default function DailyHundred() {
                 <textarea
                   value={entry.notes || ''}
                   onChange={(e) => updateHistoryNote(entry.date, e.target.value)}
+                  onClick={(e) => e.stopPropagation()}
                   placeholder="Weight used, how it felt, modifications..."
                   style={styles.notePopupTextarea}
                   autoFocus
