@@ -9,7 +9,7 @@ import {
   updateProfile,
   sendPasswordResetEmail,
 } from 'firebase/auth';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc, collection, query, where, getDocs, updateDoc, arrayUnion, arrayRemove, deleteDoc } from 'firebase/firestore';
 
 const EQUIPMENT_OPTIONS = [
   { id: 'bodyweight', label: 'BODYWEIGHT' },
@@ -504,7 +504,13 @@ export default function DailyHundred() {
   const [findQuery, setFindQuery] = useState('');
   const [creatingSquad, setCreatingSquad] = useState(false);
   const [newSquadName, setNewSquadName] = useState('');
-  const [newSquadMembers, setNewSquadMembers] = useState([]);
+  const [joinCodeInput, setJoinCodeInput] = useState('');
+  const [squads, setSquads] = useState([]); // loaded from Firestore
+  const [squadsLoading, setSquadsLoading] = useState(false);
+  const [squadError, setSquadError] = useState('');
+  const [squadBusy, setSquadBusy] = useState(false);
+  const [squadView, setSquadView] = useState('list'); // 'list' | 'create' | 'join' | 'detail'
+  const [activeSquad, setActiveSquad] = useState(null); // squad doc being viewed
   const [pendingEquipment, setPendingEquipment] = useState(['bodyweight']);
 
   // Add-move form
@@ -596,6 +602,8 @@ export default function DailyHundred() {
         cloudLoadedRef.current = true;
       }
       setLoading(false);
+      // Load squads for this user now that auth is confirmed
+      if (fbUser) setTimeout(() => loadSquads(), 500);
     });
     return () => unsub();
   }, []);
@@ -727,6 +735,10 @@ export default function DailyHundred() {
     next.timerStartedAt = null;
     next.timerAccumulated = 0;
     setJustFinished(true);
+    // Auto-mark completion in all squads this user belongs to
+    if (squads.length > 0) {
+      squads.forEach((squad) => markSquadComplete(squad));
+    }
     // Haptic buzz on mobile when supported
     try {
       if (typeof navigator !== 'undefined' && navigator.vibrate) {
@@ -931,25 +943,244 @@ export default function DailyHundred() {
       })).filter((sq) => sq.memberIds.length > 0),
     });
   }
-  function createSquad(name, memberIds) {
-    if (!name.trim() || memberIds.length === 0) return;
-    setState({
-      ...state,
-      squads: [
-        ...state.squads,
-        {
-          id: 'sq_' + Date.now(),
-          name: name.trim(),
-          memberIds,
-          dailyGoal: 100,
-        },
-      ],
-    });
+  // ---- Squad helpers ----
+
+  function generateJoinCode() {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // no confusing 0/O/I/1
+    let code = '';
+    for (let i = 0; i < 6; i++) code += chars[Math.floor(Math.random() * chars.length)];
+    return code;
   }
+
+  // Load all squads this user belongs to from Firestore
+  async function loadSquads() {
+    const uid = fbUidRef.current;
+    if (!uid) return;
+    setSquadsLoading(true);
+    try {
+      const q = query(collection(db, 'squads'), where('memberUids', 'array-contains', uid));
+      const snap = await getDocs(q);
+      const loaded = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+      setSquads(loaded);
+    } catch (e) {
+      console.error('loadSquads error', e);
+    }
+    setSquadsLoading(false);
+  }
+
+  // Create a new squad in Firestore
+  async function createSquad() {
+    const uid = fbUidRef.current;
+    if (!uid || !state?.user) return;
+    const name = newSquadName.trim();
+    if (!name) { setSquadError('Give your squad a name.'); return; }
+    if (squads.length >= 3) { setSquadError('You can be in a maximum of 3 squads.'); return; }
+    setSquadBusy(true);
+    setSquadError('');
+    try {
+      // Ensure unique join code
+      let code = generateJoinCode();
+      let attempts = 0;
+      while (attempts < 5) {
+        const existing = await getDocs(query(collection(db, 'squads'), where('joinCode', '==', code)));
+        if (existing.empty) break;
+        code = generateJoinCode();
+        attempts++;
+      }
+      const now = TODAY();
+      const squadRef = doc(collection(db, 'squads'));
+      const squadDoc = {
+        name,
+        joinCode: code,
+        creatorUid: uid,
+        memberUids: [uid],
+        memberNames: { [uid]: state.user.name },
+        streak: 0,
+        bestStreak: 0,
+        lastStreakDate: null,
+        completedToday: [], // uids who completed today
+        weekCompletions: {}, // { uid: [dates this week completed] }
+        saves: 0,
+        createdAt: now,
+      };
+      await setDoc(squadRef, squadDoc);
+      setSquads((prev) => [...prev, { id: squadRef.id, ...squadDoc }]);
+      setNewSquadName('');
+      setSquadView('list');
+    } catch (e) {
+      setSquadError('Could not create squad. Try again.');
+      console.error(e);
+    }
+    setSquadBusy(false);
+  }
+
+  // Join a squad by 6-character code
+  async function joinSquad() {
+    const uid = fbUidRef.current;
+    if (!uid || !state?.user) return;
+    const code = joinCodeInput.trim().toUpperCase();
+    if (code.length !== 6) { setSquadError('Enter the 6-character squad code.'); return; }
+    if (squads.length >= 3) { setSquadError('You can be in a maximum of 3 squads.'); return; }
+    setSquadBusy(true);
+    setSquadError('');
+    try {
+      const q = query(collection(db, 'squads'), where('joinCode', '==', code));
+      const snap = await getDocs(q);
+      if (snap.empty) { setSquadError('No squad found with that code.'); setSquadBusy(false); return; }
+      const squadDoc = snap.docs[0];
+      const data = squadDoc.data();
+      if (data.memberUids.includes(uid)) { setSquadError("You're already in this squad."); setSquadBusy(false); return; }
+      if (data.memberUids.length >= 4) { setSquadError('That squad is full (max 4 members).'); setSquadBusy(false); return; }
+      await updateDoc(squadDoc.ref, {
+        memberUids: arrayUnion(uid),
+        [`memberNames.${uid}`]: state.user.name,
+      });
+      const updated = { id: squadDoc.id, ...data, memberUids: [...data.memberUids, uid], memberNames: { ...data.memberNames, [uid]: state.user.name } };
+      setSquads((prev) => [...prev, updated]);
+      setJoinCodeInput('');
+      setSquadView('list');
+    } catch (e) {
+      setSquadError('Could not join squad. Try again.');
+      console.error(e);
+    }
+    setSquadBusy(false);
+  }
+
+  // Leave a squad; dissolve if fewer than 2 members remain
+  async function leaveSquad(squadId) {
+    const uid = fbUidRef.current;
+    if (!uid) return;
+    if (!window.confirm('Leave this squad? If fewer than 2 members remain it will dissolve.')) return;
+    setSquadBusy(true);
+    try {
+      const ref = doc(db, 'squads', squadId);
+      const snap = await getDoc(ref);
+      if (!snap.exists()) { setSquads((p) => p.filter((s) => s.id !== squadId)); setSquadBusy(false); return; }
+      const data = snap.data();
+      const remaining = data.memberUids.filter((id) => id !== uid);
+      if (remaining.length < 2) {
+        // Dissolve the squad
+        await deleteDoc(ref);
+      } else {
+        await updateDoc(ref, {
+          memberUids: arrayRemove(uid),
+          [`memberNames.${uid}`]: deleteDoc, // clean up name map
+        });
+      }
+      setSquads((p) => p.filter((s) => s.id !== squadId));
+      setSquadView('list');
+      setActiveSquad(null);
+    } catch (e) {
+      console.error('leaveSquad error', e);
+    }
+    setSquadBusy(false);
+  }
+
+  // Mark today's workout complete for this user in a squad
+  async function markSquadComplete(squad) {
+    const uid = fbUidRef.current;
+    if (!uid) return;
+    if (squad.completedToday?.includes(uid)) return; // already marked
+    const ref = doc(db, 'squads', squad.id);
+    const today = TODAY();
+    try {
+      const snap = await getDoc(ref);
+      if (!snap.exists()) return;
+      const data = snap.data();
+      const newCompleted = [...(data.completedToday || []), uid];
+      const memberCount = data.memberUids.length;
+      const threshold = Math.ceil(memberCount * 0.5); // 50% rounded up
+      let newStreak = data.streak || 0;
+      let newBest = data.bestStreak || 0;
+      let newSaves = data.saves || 0;
+      let newLastDate = data.lastStreakDate;
+
+      // Check if this completion tips us over 50% for today
+      if (newCompleted.length >= threshold && data.lastStreakDate !== today) {
+        // Did the streak survive from yesterday?
+        const yesterday = new Date();
+        yesterday.setDate(yesterday.getDate() - 1);
+        const yStr = yesterday.toISOString().slice(0, 10);
+        if (data.lastStreakDate === yStr || data.lastStreakDate === null) {
+          newStreak = (data.streak || 0) + 1;
+        } else {
+          // Gap — check saves
+          if (newSaves > 0) {
+            newStreak = (data.streak || 0) + 1;
+            newSaves = newSaves - 1;
+          } else {
+            newStreak = 1;
+          }
+        }
+        newBest = Math.max(newStreak, newBest);
+        newLastDate = today;
+      }
+
+      // Track weekly completions for save earning
+      const weekKey = getWeekKey();
+      const weekData = data.weekCompletions || {};
+      const myWeekDays = weekData[uid] || [];
+      const updatedWeekDays = myWeekDays.includes(today) ? myWeekDays : [...myWeekDays, today];
+
+      // Check if all members completed all 7 days this week → earn a save
+      const weekDays = getWeekDays();
+      const allComplete = data.memberUids.every((mid) => {
+        const days = mid === uid ? updatedWeekDays : (weekData[mid] || []);
+        return weekDays.every((d) => days.includes(d));
+      });
+      if (allComplete && newSaves < 3) newSaves = Math.min(3, newSaves + 1);
+
+      await updateDoc(ref, {
+        completedToday: newCompleted,
+        streak: newStreak,
+        bestStreak: newBest,
+        lastStreakDate: newLastDate,
+        saves: newSaves,
+        [`weekCompletions.${uid}`]: updatedWeekDays,
+      });
+
+      // Update local state
+      setSquads((prev) => prev.map((s) =>
+        s.id === squad.id
+          ? { ...s, completedToday: newCompleted, streak: newStreak, bestStreak: newBest, lastStreakDate: newLastDate, saves: newSaves }
+          : s
+      ));
+      if (activeSquad?.id === squad.id) {
+        setActiveSquad((s) => ({ ...s, completedToday: newCompleted, streak: newStreak, bestStreak: newBest, lastStreakDate: newLastDate, saves: newSaves }));
+      }
+    } catch (e) {
+      console.error('markSquadComplete error', e);
+    }
+  }
+
+  // Week helpers
+  function getWeekKey() {
+    const d = new Date();
+    const day = d.getDay(); // 0=Sun
+    const monday = new Date(d);
+    monday.setDate(d.getDate() - (day === 0 ? 6 : day - 1));
+    return monday.toISOString().slice(0, 10);
+  }
+
+  function getWeekDays() {
+    const days = [];
+    const d = new Date();
+    const day = d.getDay();
+    const monday = new Date(d);
+    monday.setDate(d.getDate() - (day === 0 ? 6 : day - 1));
+    for (let i = 0; i < 7; i++) {
+      const dd = new Date(monday);
+      dd.setDate(monday.getDate() + i);
+      days.push(dd.toISOString().slice(0, 10));
+    }
+    return days;
+  }
+
   function deleteSquad(squadId) {
-    if (!window.confirm('Delete this squad?')) return;
-    setState({ ...state, squads: state.squads.filter((s) => s.id !== squadId) });
+    // kept as stub — real deletion happens in leaveSquad when members drop below 2
   }
+
+
 
   function clearRevealTimeouts() {
     revealTimeouts.current.forEach((id) => clearTimeout(id));
@@ -2504,124 +2735,190 @@ export default function DailyHundred() {
                   </>
                 )}
 
-                {friendsView === 'squads' && (
-                  <>
-                    <div style={styles.helpText}>
-                      Squads are small groups that build a streak together. Everyone has to hit their daily target for the squad streak to count.
-                    </div>
+                {friendsView === 'squads' && (() => {
+                  const uid = fbUidRef.current;
 
-                    {!creatingSquad ? (
-                      <button
-                        style={styles.bigAddBtn}
-                        onClick={() => {
-                          if (state.friends.length === 0) {
-                            window.alert('Add at least one friend before creating a squad.');
-                            return;
-                          }
-                          setCreatingSquad(true);
-                          setNewSquadName('');
-                          setNewSquadMembers([]);
-                        }}
-                      >+ NEW SQUAD</button>
-                    ) : (
-                      <div style={styles.addForm}>
-                        <div style={styles.formLabel}>SQUAD NAME</div>
-                        <input
-                          placeholder="Sunrise Crew"
-                          value={newSquadName}
-                          onChange={(e) => setNewSquadName(e.target.value)}
-                          style={{ ...styles.nameInput, width: '100%', marginBottom: 14, textTransform: 'none' }}
-                          maxLength={30}
-                        />
-                        <div style={styles.formLabel}>PICK MEMBERS</div>
-                        <div style={{ marginBottom: 14 }}>
-                          {state.friends.map((f) => {
-                            const picked = newSquadMembers.includes(f.id);
-                            return (
-                              <button
-                                key={f.id}
-                                style={{
-                                  ...styles.memberPickRow,
-                                  background: picked ? 'var(--text)' : 'var(--surface)',
-                                  color: picked ? 'var(--bg-solid)' : 'var(--text)',
-                                  borderColor: picked ? 'var(--text)' : 'var(--border)',
-                                }}
-                                onClick={() =>
-                                  setNewSquadMembers((cur) =>
-                                    picked ? cur.filter((x) => x !== f.id) : [...cur, f.id]
-                                  )
-                                }
-                              >
-                                <span>{f.name}</span>
-                                <span style={{ opacity: 0.7 }}>{picked ? '✓' : '+'}</span>
-                              </button>
-                            );
-                          })}
-                        </div>
-                        <div style={styles.formButtons}>
-                          <button style={styles.ghostBtn} onClick={() => setCreatingSquad(false)}>CANCEL</button>
-                          <button
-                            style={styles.primaryBtn}
-                            onClick={() => {
-                              if (!newSquadName.trim() || newSquadMembers.length === 0) return;
-                              createSquad(newSquadName, newSquadMembers);
-                              setCreatingSquad(false);
-                            }}
-                          >CREATE</button>
-                        </div>
-                      </div>
-                    )}
-
-                    <div style={styles.movesHeader}>MY SQUADS · {state.squads.length}</div>
-                    {state.squads.length === 0 ? (
-                      <div style={styles.emptyFriends}>No squads yet.</div>
-                    ) : (
-                      state.squads.map((sq) => {
-                        const members = sq.memberIds
-                          .map((id) => state.friends.find((f) => f.id === id))
-                          .filter(Boolean);
-                        // Squad streak: min of everyone's streak (the chain breaks at the weakest link)
-                        const allStreaks = [state.streak, ...members.map((m) => m.streak)];
-                        const squadStreak = Math.min(...allStreaks);
-                        return (
-                          <div key={sq.id} style={styles.squadCard}>
-                            <div style={styles.squadHeader}>
-                              <div>
-                                <div style={styles.squadName}>{sq.name}</div>
-                                <div style={styles.squadMembers}>
-                                  You + {members.map((m) => m.name.split(' ')[0]).join(', ')}
-                                </div>
-                              </div>
-                              <button
-                                style={styles.smallGhostBtn}
-                                onClick={() => deleteSquad(sq.id)}
-                                title="Delete squad"
-                              >✕</button>
+                  // ---- DETAIL VIEW ----
+                  if (squadView === 'detail' && activeSquad) {
+                    const sq = squads.find((s) => s.id === activeSquad.id) || activeSquad;
+                    const completedToday = sq.completedToday || [];
+                    const memberUids = sq.memberUids || [];
+                    const memberNames = sq.memberNames || {};
+                    const myDone = completedToday.includes(uid);
+                    return (
+                      <>
+                        <button style={styles.backLink} onClick={() => { setSquadView('list'); setActiveSquad(null); }}>← BACK</button>
+                        <div style={styles.squadDetailCard}>
+                          <div style={styles.squadDetailName}>{sq.name}</div>
+                          <div style={styles.squadDetailStreakRow}>
+                            <div style={styles.squadDetailStreakBlock}>
+                              <div style={styles.squadDetailStreakNum}>{sq.streak || 0}</div>
+                              <div style={styles.squadDetailStreakLabel}>DAY{(sq.streak || 0) === 1 ? '' : 'S'}<br />SQUAD STREAK</div>
                             </div>
-                            <div style={styles.squadStreakBlock}>
-                              <div style={styles.squadStreakNum}>{squadStreak}</div>
-                              <div style={styles.squadStreakLabel}>
-                                DAY{squadStreak === 1 ? '' : 'S'}<br />SQUAD STREAK
-                              </div>
+                            <div style={styles.squadDetailStreakBlock}>
+                              <div style={styles.squadDetailStreakNum}>{sq.bestStreak || 0}</div>
+                              <div style={styles.squadDetailStreakLabel}>BEST<br />EVER</div>
                             </div>
-                            <div style={styles.squadMemberList}>
-                              <div style={styles.squadMemberRow}>
-                                <span>You</span>
-                                <span style={styles.squadMemberStreak}>{state.streak} d</span>
-                              </div>
-                              {members.map((m) => (
-                                <div key={m.id} style={styles.squadMemberRow}>
-                                  <span>{m.name}</span>
-                                  <span style={styles.squadMemberStreak}>{m.streak} d</span>
-                                </div>
-                              ))}
+                            <div style={styles.squadDetailStreakBlock}>
+                              <div style={styles.squadDetailStreakNum}>{sq.saves || 0}</div>
+                              <div style={styles.squadDetailStreakLabel}>SAVES<br />BANKED</div>
                             </div>
                           </div>
+                          <div style={styles.squadDetailRule}>
+                            2 of {memberUids.length} must complete daily · saves auto-spend · earn saves with a perfect week
+                          </div>
+                        </div>
+
+                        <div style={styles.movesHeader}>TODAY · {completedToday.length}/{memberUids.length} DONE</div>
+                        {memberUids.map((mid) => {
+                          const name = memberNames[mid] || 'Member';
+                          const done = completedToday.includes(mid);
+                          const isMe = mid === uid;
+                          return (
+                            <div key={mid} style={{ ...styles.squadMemberRow2, background: isMe ? 'var(--surface)' : 'transparent' }}>
+                              <div style={styles.squadMemberName2}>{name}{isMe ? ' (you)' : ''}</div>
+                              <div style={{ ...styles.squadMemberBadge, background: done ? 'var(--accent)' : 'var(--border)', color: done ? '#fff' : 'var(--text-muted)' }}>
+                                {done ? '✓ DONE' : '⏳ YET'}
+                              </div>
+                            </div>
+                          );
+                        })}
+
+                        <div style={styles.squadCodeBlock}>
+                          <div style={styles.squadCodeLabel}>INVITE CODE</div>
+                          <div style={styles.squadCodeValue}>{sq.joinCode}</div>
+                          <div style={styles.squadCodeHint}>Share this code so others can join</div>
+                        </div>
+
+                        <button
+                          style={{ ...styles.ghostBtn, marginTop: 8, fontSize: 12, letterSpacing: 1.5, opacity: squadBusy ? 0.5 : 1 }}
+                          onClick={() => leaveSquad(sq.id)}
+                          disabled={squadBusy}
+                        >LEAVE SQUAD</button>
+                      </>
+                    );
+                  }
+
+                  // ---- CREATE VIEW ----
+                  if (squadView === 'create') {
+                    return (
+                      <>
+                        <button style={styles.backLink} onClick={() => { setSquadView('list'); setSquadError(''); }}>← BACK</button>
+                        <div style={styles.movesHeader}>NEW SQUAD</div>
+                        {squadError && <div style={styles.authErrorText}>{squadError}</div>}
+                        <div style={styles.formLabel}>SQUAD NAME</div>
+                        <input
+                          placeholder="Morning Crew"
+                          value={newSquadName}
+                          onChange={(e) => setNewSquadName(e.target.value)}
+                          style={{ ...styles.authInput, marginBottom: 20 }}
+                          maxLength={30}
+                          autoFocus
+                        />
+                        <div style={styles.formButtons}>
+                          <button style={styles.ghostBtn} onClick={() => { setSquadView('list'); setSquadError(''); }}>CANCEL</button>
+                          <button
+                            style={{ ...styles.primaryBtn, opacity: squadBusy ? 0.6 : 1 }}
+                            onClick={createSquad}
+                            disabled={squadBusy}
+                          >{squadBusy ? 'CREATING…' : 'CREATE SQUAD'}</button>
+                        </div>
+                        <div style={{ ...styles.helpText, marginTop: 16 }}>
+                          A 6-character invite code is generated automatically. Share it with up to 3 others to build your squad.
+                        </div>
+                      </>
+                    );
+                  }
+
+                  // ---- JOIN VIEW ----
+                  if (squadView === 'join') {
+                    return (
+                      <>
+                        <button style={styles.backLink} onClick={() => { setSquadView('list'); setSquadError(''); }}>← BACK</button>
+                        <div style={styles.movesHeader}>JOIN A SQUAD</div>
+                        {squadError && <div style={styles.authErrorText}>{squadError}</div>}
+                        <div style={styles.formLabel}>6-CHARACTER CODE</div>
+                        <input
+                          placeholder="ABC123"
+                          value={joinCodeInput}
+                          onChange={(e) => setJoinCodeInput(e.target.value.toUpperCase())}
+                          style={{ ...styles.authInput, letterSpacing: 4, fontSize: 20, textAlign: 'center', marginBottom: 20 }}
+                          maxLength={6}
+                          autoFocus
+                          autoCapitalize="characters"
+                        />
+                        <div style={styles.formButtons}>
+                          <button style={styles.ghostBtn} onClick={() => { setSquadView('list'); setSquadError(''); }}>CANCEL</button>
+                          <button
+                            style={{ ...styles.primaryBtn, opacity: squadBusy ? 0.6 : 1 }}
+                            onClick={joinSquad}
+                            disabled={squadBusy}
+                          >{squadBusy ? 'JOINING…' : 'JOIN SQUAD'}</button>
+                        </div>
+                      </>
+                    );
+                  }
+
+                  // ---- LIST VIEW (default) ----
+                  return (
+                    <>
+                      {squads.length < 3 && (
+                        <div style={styles.squadActionRow}>
+                          <button
+                            style={styles.squadActionBtn}
+                            onClick={() => { setSquadView('create'); setSquadError(''); setNewSquadName(''); }}
+                          >+ CREATE SQUAD</button>
+                          <button
+                            style={styles.squadActionBtn}
+                            onClick={() => { setSquadView('join'); setSquadError(''); setJoinCodeInput(''); }}
+                          >↗ JOIN SQUAD</button>
+                        </div>
+                      )}
+                      {squadsLoading && <div style={styles.emptyFriends}>Loading squads…</div>}
+                      {!squadsLoading && squads.length === 0 && (
+                        <div style={styles.emptyFriends}>
+                          No squads yet. Create one or join with a code.
+                        </div>
+                      )}
+                      {squads.map((sq) => {
+                        const completedToday = sq.completedToday || [];
+                        const memberCount = sq.memberUids?.length || 1;
+                        const threshold = Math.ceil(memberCount * 0.5);
+                        const onTrack = completedToday.length >= threshold;
+                        const myDone = completedToday.includes(uid);
+                        return (
+                          <button
+                            key={sq.id}
+                            style={styles.squadCard}
+                            onClick={() => { setActiveSquad(sq); setSquadView('detail'); }}
+                          >
+                            <div style={styles.squadCardTop}>
+                              <div style={styles.squadName}>{sq.name}</div>
+                              <div style={{ ...styles.squadStatusChip, background: onTrack ? 'rgba(60,180,100,0.15)' : 'var(--surface)', color: onTrack ? '#3cb464' : 'var(--text-muted)' }}>
+                                {onTrack ? '✓ ON TRACK' : `${completedToday.length}/${memberCount} TODAY`}
+                              </div>
+                            </div>
+                            <div style={styles.squadCardBottom}>
+                              <div style={styles.squadStreakMini}>
+                                <span style={styles.squadStreakMiniNum}>{sq.streak || 0}</span>
+                                <span style={styles.squadStreakMiniLabel}> DAY STREAK</span>
+                              </div>
+                              {(sq.saves || 0) > 0 && (
+                                <div style={styles.squadSaveChip}>🛡 {sq.saves} SAVE{sq.saves > 1 ? 'S' : ''}</div>
+                              )}
+                              <div style={{ ...styles.squadMyStatus, color: myDone ? '#3cb464' : 'var(--text-muted)' }}>
+                                {myDone ? 'YOU ✓' : 'YOU ⏳'}
+                              </div>
+                            </div>
+                          </button>
                         );
-                      })
-                    )}
-                  </>
-                )}
+                      })}
+                      {squads.length >= 3 && (
+                        <div style={styles.helpText}>You're in the maximum of 3 squads.</div>
+                      )}
+                    </>
+                  );
+                })()}
               </>
             );
           })()}
@@ -3265,16 +3562,41 @@ const styles = {
   smallGhostBtn: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, fontWeight: 700, letterSpacing: 1, padding: '7px 11px', background: 'var(--surface)', color: 'var(--text)', border: '1.5px solid var(--border)', cursor: 'pointer', borderRadius: 8 },
   helpText: { fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.45, marginBottom: 16, padding: '12px 14px', background: 'var(--surface)', borderRadius: 12, border: '1.5px solid var(--border)' },
   memberPickRow: { width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '11px 15px', border: '1.5px solid var(--border)', cursor: 'pointer', borderRadius: 10, marginBottom: 6, fontFamily: 'inherit', fontSize: 14, fontWeight: 600 },
-  squadCard: { background: 'var(--surface)', border: '1.5px solid var(--border)', borderRadius: 16, padding: 16, marginBottom: 12, boxShadow: '0 2px 10px var(--shadow-xs)' },
-  squadHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 },
+  squadActionRow: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 16 },
+  squadActionBtn: { fontFamily: "'JetBrains Mono', monospace", fontSize: 11, fontWeight: 700, letterSpacing: 1.5, padding: "13px 0", background: "var(--surface)", color: "var(--text)", border: "1.5px solid var(--border)", cursor: "pointer", borderRadius: 10 },
+  squadCard: { width: "100%", textAlign: "left", background: "var(--surface)", border: "1.5px solid var(--border)", borderRadius: 16, padding: "14px 16px", marginBottom: 10, boxShadow: "0 2px 8px var(--shadow-xs)", cursor: "pointer", fontFamily: "inherit", color: "inherit" },
+  squadCardTop: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 },
+  squadCardBottom: { display: "flex", alignItems: "center", gap: 10 },
   squadName: { fontFamily: "'Archivo Black', sans-serif", fontSize: 18, lineHeight: 1, letterSpacing: -0.3 },
-  squadMembers: { fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: 'var(--text-muted)', marginTop: 4 },
-  squadStreakBlock: { display: 'flex', alignItems: 'center', gap: 12, padding: '14px 16px', background: 'var(--dark-card-bg)', color: 'var(--bg-solid)', borderRadius: 12, marginBottom: 12 },
-  squadStreakNum: { fontFamily: "'Archivo Black', sans-serif", fontSize: 40, lineHeight: 0.85, color: 'var(--accent)' },
-  squadStreakLabel: { fontFamily: "'JetBrains Mono', monospace", fontSize: 10, letterSpacing: 1.5, fontWeight: 700, lineHeight: 1.2 },
-  squadMemberList: { display: 'flex', flexDirection: 'column', gap: 4 },
-  squadMemberRow: { display: 'flex', justifyContent: 'space-between', fontSize: 13, padding: '4px 0' },
-  squadMemberStreak: { fontFamily: "'JetBrains Mono', monospace", fontWeight: 700, color: 'var(--accent)' },
+  squadStatusChip: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, fontWeight: 700, letterSpacing: 1.2, padding: "4px 9px", borderRadius: 999, flexShrink: 0 },
+  squadStreakMini: { fontFamily: "'JetBrains Mono', monospace", fontSize: 11, fontWeight: 700, color: "var(--text-muted)" },
+  squadStreakMiniNum: { fontFamily: "'Archivo Black', sans-serif", fontSize: 16, color: "var(--accent)" },
+  squadStreakMiniLabel: { color: "var(--text-muted)" },
+  squadSaveChip: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, fontWeight: 700, letterSpacing: 0.5, color: "var(--text-muted)", marginLeft: "auto" },
+  squadMyStatus: { fontFamily: "'JetBrains Mono', monospace", fontSize: 10, fontWeight: 700, letterSpacing: 1 },
+  backLink: { background: "none", border: "none", color: "var(--accent)", fontFamily: "'JetBrains Mono', monospace", fontSize: 11, fontWeight: 700, letterSpacing: 1.5, cursor: "pointer", padding: "0 0 16px", display: "block" },
+  squadDetailCard: { background: "var(--surface)", border: "1.5px solid var(--border)", borderRadius: 16, padding: "18px 16px", marginBottom: 18 },
+  squadDetailName: { fontFamily: "'Archivo Black', sans-serif", fontSize: 24, letterSpacing: -0.5, lineHeight: 1, marginBottom: 16 },
+  squadDetailStreakRow: { display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10, marginBottom: 12 },
+  squadDetailStreakBlock: { textAlign: "center" },
+  squadDetailStreakNum: { fontFamily: "'Archivo Black', sans-serif", fontSize: 32, color: "var(--accent)", lineHeight: 1, marginBottom: 4 },
+  squadDetailStreakLabel: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, letterSpacing: 1.2, fontWeight: 700, color: "var(--text-muted)", lineHeight: 1.3 },
+  squadDetailRule: { fontFamily: "'Inter', sans-serif", fontSize: 11, color: "var(--text-muted)", lineHeight: 1.4, borderTop: "1px solid var(--border-soft)", paddingTop: 10 },
+  squadMemberRow2: { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 12px", borderRadius: 10, marginBottom: 6 },
+  squadMemberName2: { fontFamily: "'Inter', sans-serif", fontSize: 14, fontWeight: 600 },
+  squadMemberBadge: { fontFamily: "'JetBrains Mono', monospace", fontSize: 10, fontWeight: 700, letterSpacing: 1, padding: "5px 10px", borderRadius: 999 },
+  squadCodeBlock: { marginTop: 20, padding: "14px 16px", background: "var(--surface)", border: "1.5px solid var(--border)", borderRadius: 12, textAlign: "center" },
+  squadCodeLabel: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, letterSpacing: 2, fontWeight: 700, color: "var(--text-muted)", marginBottom: 8 },
+  squadCodeValue: { fontFamily: "'Archivo Black', sans-serif", fontSize: 32, letterSpacing: 8, color: "var(--accent)", marginBottom: 6 },
+  squadCodeHint: { fontFamily: "'Inter', sans-serif", fontSize: 12, color: "var(--text-muted)" },
+  squadHeader: { display: "flex", justifyContent: "space-between", alignItems: "flex-start" },
+  squadMembers: { fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: "var(--text-muted)", marginTop: 4 },
+  squadStreakBlock: { display: "flex", alignItems: "center", gap: 12 },
+  squadStreakNum: { fontFamily: "'Archivo Black', sans-serif", fontSize: 40, color: "var(--accent)" },
+  squadStreakLabel: { fontFamily: "'JetBrains Mono', monospace", fontSize: 10, letterSpacing: 1.5 },
+  squadMemberList: { display: "flex", flexDirection: "column", gap: 4 },
+  squadMemberRow: { display: "flex", justifyContent: "space-between", fontSize: 13, padding: "4px 0" },
+  squadMemberStreak: { fontFamily: "'JetBrains Mono', monospace", fontWeight: 700, color: "var(--accent)" },
 
   loadingWrap: { minHeight: '100vh', background: 'var(--bg-solid)', display: 'flex', alignItems: 'center', justifyContent: 'center' },
   loadingDot: { width: 16, height: 16, background: 'var(--accent)', borderRadius: '50%', animation: 'pulse 1.2s ease-in-out infinite' },
