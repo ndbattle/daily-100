@@ -971,7 +971,11 @@ export default function DailyHundred() {
   // Create a new squad in Firestore
   async function createSquad() {
     const uid = fbUidRef.current;
-    if (!uid || !state?.user) return;
+    console.log('[Squad] createSquad called, uid:', uid, 'user:', state?.user?.name);
+    if (!uid || !state?.user) {
+      console.log('[Squad] Bailing — no uid or user');
+      return;
+    }
     const name = newSquadName.trim();
     if (!name) { setSquadError('Give your squad a name.'); return; }
     if (squads.length >= 3) { setSquadError('You can be in a maximum of 3 squads.'); return; }
@@ -1003,13 +1007,15 @@ export default function DailyHundred() {
         saves: 0,
         createdAt: now,
       };
+      console.log('[Squad] Generated code:', code, 'Writing to Firestore...');
       await setDoc(squadRef, squadDoc);
+      console.log('[Squad] Created successfully:', squadRef.id);
       setSquads((prev) => [...prev, { id: squadRef.id, ...squadDoc }]);
       setNewSquadName('');
       setSquadView('list');
     } catch (e) {
+      console.error('[Squad] Error creating squad:', e.code, e.message);
       setSquadError('Could not create squad. Try again.');
-      console.error(e);
     }
     setSquadBusy(false);
   }
