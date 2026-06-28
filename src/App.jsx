@@ -9,13 +9,20 @@ import {
   updateProfile,
   sendPasswordResetEmail,
 } from 'firebase/auth';
-import { doc, getDoc, setDoc, collection, query, where, getDocs, updateDoc, arrayUnion, arrayRemove, deleteDoc, deleteField } from 'firebase/firestore';
+import { doc, getDoc, setDoc, collection, query, where, getDocs, updateDoc, arrayUnion, arrayRemove, deleteDoc, deleteField, onSnapshot } from 'firebase/firestore';
 
 const EQUIPMENT_OPTIONS = [
   { id: 'bodyweight', label: 'BODYWEIGHT' },
   { id: 'dumbbell',   label: 'DUMBBELLS' },
   { id: 'kettlebell', label: 'KETTLEBELL' },
   { id: 'band',       label: 'RESISTANCE BAND' },
+];
+
+const EMOJI_REACTIONS = [
+  { key: 'fire',   emoji: '🔥' },
+  { key: 'muscle', emoji: '💪' },
+  { key: 'clap',   emoji: '🙌' },
+  { key: 'bolt',   emoji: '⚡' },
 ];
 
 const TARGET_OPTIONS = [50, 75, 100];
@@ -511,6 +518,7 @@ export default function DailyHundred() {
   const [squadBusy, setSquadBusy] = useState(false);
   const [squadView, setSquadView] = useState('list'); // 'list' | 'create' | 'join' | 'detail'
   const [activeSquad, setActiveSquad] = useState(null); // squad doc being viewed
+  const [squadReactions, setSquadReactions] = useState({}); // { squadId: { reactionKey: [uid,...] } }
   const [pendingEquipment, setPendingEquipment] = useState(['bodyweight']);
 
   // Add-move form
@@ -669,6 +677,22 @@ export default function DailyHundred() {
   function setTheme(t) {
     setState({ ...state, theme: t });
   }
+
+  // Real-time reaction subscription — one listener per squad doc
+  const squadIdsStr = useMemo(() => squads.map((s) => s.id).join(','), [squads]);
+  useEffect(() => {
+    if (!fbUidRef.current || !squads.length) return;
+    const unsubs = squads.map((sq) =>
+      onSnapshot(doc(db, 'squads', sq.id), (snap) => {
+        setSquadReactions((prev) => ({
+          ...prev,
+          [sq.id]: snap.exists() ? (snap.data().reactions || {}) : {},
+        }));
+      })
+    );
+    return () => unsubs.forEach((u) => u());
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [squadIdsStr]);
 
   const schemes = useMemo(
     () => SCHEMES_BY_TARGET[state?.target] || SCHEMES_BY_TARGET[100],
@@ -1080,6 +1104,48 @@ export default function DailyHundred() {
       console.error('leaveSquad error', e);
     }
     setSquadBusy(false);
+  }
+
+  async function toggleReaction(squadId, memberUid, emojiKey) {
+    const myUid = fbUidRef.current;
+    if (!myUid) return;
+    const reactionKey = `${TODAY()}__${memberUid}__${emojiKey}`;
+    const currentReactors = squadReactions[squadId]?.[reactionKey] || [];
+    const alreadyReacted = currentReactors.includes(myUid);
+
+    // Optimistic update
+    setSquadReactions((prev) => {
+      const existing = prev[squadId] || {};
+      const reactors = existing[reactionKey] || [];
+      return {
+        ...prev,
+        [squadId]: {
+          ...existing,
+          [reactionKey]: alreadyReacted
+            ? reactors.filter((id) => id !== myUid)
+            : [...reactors, myUid],
+        },
+      };
+    });
+
+    const squadRef = doc(db, 'squads', squadId);
+    try {
+      await updateDoc(squadRef, {
+        [`reactions.${reactionKey}`]: alreadyReacted ? arrayRemove(myUid) : arrayUnion(myUid),
+      });
+    } catch {
+      try {
+        await setDoc(squadRef, {
+          reactions: { [reactionKey]: alreadyReacted ? [] : [myUid] },
+        }, { merge: true });
+      } catch {
+        // Revert optimistic update on failure
+        setSquadReactions((prev) => ({
+          ...prev,
+          [squadId]: { ...(prev[squadId] || {}), [reactionKey]: currentReactors },
+        }));
+      }
+    }
   }
 
   // Mark today's workout complete for this user in a squad
@@ -2778,14 +2844,55 @@ export default function DailyHundred() {
                         <div style={styles.movesHeader}>TODAY · {completedToday.length}/{memberUids.length} DONE</div>
                         {memberUids.map((mid) => {
                           const name = memberNames[mid] || 'Member';
-                          const done = completedToday.includes(mid);
+                          const memberDone = completedToday.includes(mid);
                           const isMe = mid === uid;
                           return (
-                            <div key={mid} style={{ ...styles.squadMemberRow2, background: isMe ? 'var(--surface)' : 'transparent' }}>
-                              <div style={styles.squadMemberName2}>{name}{isMe ? ' (you)' : ''}</div>
-                              <div style={{ ...styles.squadMemberBadge, background: done ? 'var(--accent)' : 'var(--border)', color: done ? '#fff' : 'var(--text-muted)' }}>
-                                {done ? '✓ DONE' : '⏳ YET'}
+                            <div key={mid}>
+                              <div style={{ ...styles.squadMemberRow2, background: isMe ? 'var(--surface)' : 'transparent', marginBottom: memberDone ? 2 : 6 }}>
+                                <div style={styles.squadMemberName2}>{name}{isMe ? ' (you)' : ''}</div>
+                                <div style={{ ...styles.squadMemberBadge, background: memberDone ? 'var(--accent)' : 'var(--border)', color: memberDone ? '#fff' : 'var(--text-muted)' }}>
+                                  {memberDone ? '✓ DONE' : '⏳ YET'}
+                                </div>
                               </div>
+                              {memberDone && !isMe && (
+                                <div style={styles.reactionRow}>
+                                  {EMOJI_REACTIONS.map(({ key, emoji }) => {
+                                    const rk = `${TODAY()}__${mid}__${key}`;
+                                    const reactors = squadReactions[sq.id]?.[rk] || [];
+                                    const iReacted = reactors.includes(uid);
+                                    return (
+                                      <button
+                                        key={key}
+                                        onClick={() => toggleReaction(sq.id, mid, key)}
+                                        style={{
+                                          ...styles.reactionBtn,
+                                          background: iReacted ? 'var(--accent-gradient)' : 'var(--surface)',
+                                          color: iReacted ? '#fff' : 'var(--text)',
+                                          borderColor: iReacted ? 'transparent' : 'var(--border)',
+                                        }}
+                                      >
+                                        {emoji}
+                                        {reactors.length > 0 && <span style={styles.reactionCount}>{reactors.length}</span>}
+                                      </button>
+                                    );
+                                  })}
+                                </div>
+                              )}
+                              {memberDone && isMe && (() => {
+                                const chips = EMOJI_REACTIONS.filter(({ key }) => (squadReactions[sq.id]?.[`${TODAY()}__${mid}__${key}`] || []).length > 0);
+                                return chips.length > 0 ? (
+                                  <div style={styles.reactionRow}>
+                                    {chips.map(({ key, emoji }) => {
+                                      const cnt = (squadReactions[sq.id]?.[`${TODAY()}__${mid}__${key}`] || []).length;
+                                      return (
+                                        <div key={key} style={styles.reactionChip}>
+                                          {emoji} <span style={styles.reactionCount}>{cnt}</span>
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
+                                ) : null;
+                              })()}
                             </div>
                           );
                         })}
@@ -3603,6 +3710,12 @@ const styles = {
   squadMemberList: { display: "flex", flexDirection: "column", gap: 4 },
   squadMemberRow: { display: "flex", justifyContent: "space-between", fontSize: 13, padding: "4px 0" },
   squadMemberStreak: { fontFamily: "'JetBrains Mono', monospace", fontWeight: 700, color: "var(--accent)" },
+
+  // Emoji reactions (squad detail view)
+  reactionRow: { display: 'flex', gap: 4, padding: '4px 12px 8px', flexWrap: 'wrap' },
+  reactionBtn: { display: 'inline-flex', alignItems: 'center', gap: 4, padding: '4px 10px', border: '1.5px solid var(--border)', borderRadius: 20, cursor: 'pointer', fontFamily: 'inherit', fontSize: 16, lineHeight: 1, background: 'var(--surface)', flexShrink: 0 },
+  reactionChip: { display: 'inline-flex', alignItems: 'center', gap: 4, padding: '4px 10px', border: '1.5px solid var(--border)', borderRadius: 20, fontSize: 16, lineHeight: 1, background: 'var(--surface)', flexShrink: 0 },
+  reactionCount: { fontFamily: "'JetBrains Mono', monospace", fontSize: 10, fontWeight: 700, lineHeight: 1 },
 
   loadingWrap: { minHeight: '100vh', background: 'var(--bg-solid)', display: 'flex', alignItems: 'center', justifyContent: 'center' },
   loadingDot: { width: 16, height: 16, background: 'var(--accent)', borderRadius: '50%', animation: 'pulse 1.2s ease-in-out infinite' },
