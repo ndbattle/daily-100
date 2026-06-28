@@ -9,7 +9,7 @@ import {
   updateProfile,
   sendPasswordResetEmail,
 } from 'firebase/auth';
-import { doc, getDoc, setDoc, collection, query, where, getDocs, updateDoc, arrayUnion, arrayRemove, deleteDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc, collection, query, where, getDocs, updateDoc, arrayUnion, arrayRemove, deleteDoc, deleteField } from 'firebase/firestore';
 
 const EQUIPMENT_OPTIONS = [
   { id: 'bodyweight', label: 'BODYWEIGHT' },
@@ -1064,7 +1064,7 @@ export default function DailyHundred() {
       } else {
         await updateDoc(ref, {
           memberUids: arrayRemove(uid),
-          [`memberNames.${uid}`]: deleteDoc, // clean up name map
+          [`memberNames.${uid}`]: deleteField(), // remove from name map
         });
       }
       setSquads((p) => p.filter((s) => s.id !== squadId));
