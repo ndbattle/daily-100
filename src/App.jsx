@@ -2837,7 +2837,7 @@ export default function DailyHundred() {
                             </div>
                           </div>
                           <div style={styles.squadDetailRule}>
-                            <div>· 50% of squad members must complete to save streak</div>
+                            <div>· 50% of squad members must complete to continue streak</div>
                             <div>· 7 consecutive days earns a streak save</div>
                             <div>· 5 saves max</div>
                           </div>
