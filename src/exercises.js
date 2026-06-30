@@ -51,7 +51,7 @@ export const BUILTIN_EXERCISES = [
   { name: 'TOE TOUCHES', tip: 'Legs up, reach for toes. Crunch the abs.', equipment: ['bodyweight'] },
   { name: 'STAR JUMPS', tip: 'Explode out. Arms and legs full extension.', equipment: ['bodyweight'] },
   { name: 'SKATER JUMPS', tip: 'Side to side. Land soft, sweep back leg.', equipment: ['bodyweight'] },
-  { name: 'DONKEY KICKS', tip: 'On all fours. Squeeze glute at the top.', equipment: ['bodyweight'] },
+  { name: 'PLANK JACKS', tip: 'Stable plank and pretend you are doing a jumping jack.', equipment: ['bodyweight'] },
   { name: 'PUSH-UP MEDLEY', tip: 'Try 5x20 of Wide Arm, Diamond, Pike, T-Pushup, and Decline.', equipment: ['bodyweight'] },
   // Add your bodyweight exercises here
 
