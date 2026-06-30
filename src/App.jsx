@@ -611,7 +611,7 @@ export default function DailyHundred() {
       }
       setLoading(false);
       // Load squads for this user now that auth is confirmed
-      if (fbUser) setTimeout(() => loadSquads(), 500);
+      if (fbUser) setupSquadListener();
     });
     return () => unsub();
   }, []);
@@ -678,21 +678,25 @@ export default function DailyHundred() {
     setState({ ...state, theme: t });
   }
 
-  // Real-time reaction subscription — one listener per squad doc
-  const squadIdsStr = useMemo(() => squads.map((s) => s.id).join(','), [squads]);
-  useEffect(() => {
-    if (!fbUidRef.current || !squads.length) return;
-    const unsubs = squads.map((sq) =>
-      onSnapshot(doc(db, 'squads', sq.id), (snap) => {
-        setSquadReactions((prev) => ({
-          ...prev,
-          [sq.id]: snap.exists() ? (snap.data().reactions || {}) : {},
-        }));
-      })
-    );
-    return () => unsubs.forEach((u) => u());
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [squadIdsStr]);
+  // One real-time collection listener — keeps squads AND reactions live for all members.
+  // Using a collection query (list permission) instead of per-doc listeners (get permission)
+  // so that non-creator members can receive updates too.
+  const squadUnsubRef = useRef(null);
+  function setupSquadListener() {
+    const uid = fbUidRef.current;
+    if (!uid) return;
+    if (squadUnsubRef.current) squadUnsubRef.current();
+    setSquadsLoading(true);
+    const q = query(collection(db, 'squads'), where('memberUids', 'array-contains', uid));
+    squadUnsubRef.current = onSnapshot(q, (snap) => {
+      const loaded = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+      setSquads(loaded);
+      const reactions = {};
+      snap.docs.forEach((d) => { reactions[d.id] = d.data().reactions || {}; });
+      setSquadReactions(reactions);
+      setSquadsLoading(false);
+    }, () => { setSquadsLoading(false); });
+  }
 
   const schemes = useMemo(
     () => SCHEMES_BY_TARGET[state?.target] || SCHEMES_BY_TARGET[100],
@@ -976,21 +980,6 @@ export default function DailyHundred() {
     return code;
   }
 
-  // Load all squads this user belongs to from Firestore
-  async function loadSquads() {
-    const uid = fbUidRef.current;
-    if (!uid) return;
-    setSquadsLoading(true);
-    try {
-      const q = query(collection(db, 'squads'), where('memberUids', 'array-contains', uid));
-      const snap = await getDocs(q);
-      const loaded = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
-      setSquads(loaded);
-    } catch (e) {
-      console.error('loadSquads error', e);
-    }
-    setSquadsLoading(false);
-  }
 
   // Create a new squad in Firestore
   async function createSquad() {
@@ -1027,6 +1016,7 @@ export default function DailyHundred() {
         bestStreak: 0,
         lastStreakDate: null,
         completedToday: [], // uids who completed today
+        completedTodayDate: null, // local date string for completedToday
         weekCompletions: {}, // { uid: [dates this week completed] }
         saves: 0,
         createdAt: now,
@@ -1152,14 +1142,19 @@ export default function DailyHundred() {
   async function markSquadComplete(squad) {
     const uid = fbUidRef.current;
     if (!uid) return;
-    if (squad.completedToday?.includes(uid)) return; // already marked
-    const ref = doc(db, 'squads', squad.id);
     const today = TODAY();
+    // Only skip if the existing completedToday is actually from today
+    if (squad.completedTodayDate === today && squad.completedToday?.includes(uid)) return;
+    const ref = doc(db, 'squads', squad.id);
     try {
       const snap = await getDoc(ref);
       if (!snap.exists()) return;
       const data = snap.data();
-      const newCompleted = [...(data.completedToday || []), uid];
+      // Reset completedToday if it's from a previous day
+      const isNewDay = data.completedTodayDate !== today;
+      const currentCompleted = isNewDay ? [] : (data.completedToday || []);
+      if (!isNewDay && currentCompleted.includes(uid)) return;
+      const newCompleted = [...currentCompleted, uid];
       const memberCount = data.memberUids.length;
       const threshold = Math.ceil(memberCount * 0.5); // 50% rounded up
       let newStreak = data.streak || 0;
@@ -1169,10 +1164,10 @@ export default function DailyHundred() {
 
       // Check if this completion tips us over 50% for today
       if (newCompleted.length >= threshold && data.lastStreakDate !== today) {
-        // Did the streak survive from yesterday?
-        const yesterday = new Date();
-        yesterday.setDate(yesterday.getDate() - 1);
-        const yStr = yesterday.toISOString().slice(0, 10);
+        // Did the streak survive from yesterday? Use local date, not UTC.
+        const yDate = new Date();
+        yDate.setDate(yDate.getDate() - 1);
+        const yStr = `${yDate.getFullYear()}-${String(yDate.getMonth() + 1).padStart(2, '0')}-${String(yDate.getDate()).padStart(2, '0')}`;
         if (data.lastStreakDate === yStr || data.lastStreakDate === null) {
           newStreak = (data.streak || 0) + 1;
         } else {
@@ -1204,6 +1199,7 @@ export default function DailyHundred() {
 
       await updateDoc(ref, {
         completedToday: newCompleted,
+        completedTodayDate: today,
         streak: newStreak,
         bestStreak: newBest,
         lastStreakDate: newLastDate,
@@ -1214,24 +1210,24 @@ export default function DailyHundred() {
       // Update local state
       setSquads((prev) => prev.map((s) =>
         s.id === squad.id
-          ? { ...s, completedToday: newCompleted, streak: newStreak, bestStreak: newBest, lastStreakDate: newLastDate, saves: newSaves }
+          ? { ...s, completedToday: newCompleted, completedTodayDate: today, streak: newStreak, bestStreak: newBest, lastStreakDate: newLastDate, saves: newSaves }
           : s
       ));
       if (activeSquad?.id === squad.id) {
-        setActiveSquad((s) => ({ ...s, completedToday: newCompleted, streak: newStreak, bestStreak: newBest, lastStreakDate: newLastDate, saves: newSaves }));
+        setActiveSquad((s) => ({ ...s, completedToday: newCompleted, completedTodayDate: today, streak: newStreak, bestStreak: newBest, lastStreakDate: newLastDate, saves: newSaves }));
       }
     } catch (e) {
       console.error('markSquadComplete error', e);
     }
   }
 
-  // Week helpers
+  // Week helpers — use local dates (same as TODAY()) not UTC
   function getWeekKey() {
     const d = new Date();
     const day = d.getDay(); // 0=Sun
     const monday = new Date(d);
     monday.setDate(d.getDate() - (day === 0 ? 6 : day - 1));
-    return monday.toISOString().slice(0, 10);
+    return `${monday.getFullYear()}-${String(monday.getMonth() + 1).padStart(2, '0')}-${String(monday.getDate()).padStart(2, '0')}`;
   }
 
   function getWeekDays() {
@@ -1243,7 +1239,7 @@ export default function DailyHundred() {
     for (let i = 0; i < 7; i++) {
       const dd = new Date(monday);
       dd.setDate(monday.getDate() + i);
-      days.push(dd.toISOString().slice(0, 10));
+      days.push(`${dd.getFullYear()}-${String(dd.getMonth() + 1).padStart(2, '0')}-${String(dd.getDate()).padStart(2, '0')}`);
     }
     return days;
   }
