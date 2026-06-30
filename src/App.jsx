@@ -2911,7 +2911,7 @@ export default function DailyHundred() {
                         </div>
 
                         <button
-                          style={{ ...styles.ghostBtn, marginTop: 8, fontSize: 12, letterSpacing: 1.5, opacity: squadBusy ? 0.5 : 1 }}
+                          style={{ ...styles.ghostBtn, marginTop: 8, fontSize: 10, letterSpacing: 1.2, background: '#000', color: '#fff', borderColor: '#000', width: '100%', textAlign: 'center', opacity: squadBusy ? 0.5 : 1 }}
                           onClick={() => leaveSquad(sq.id)}
                           disabled={squadBusy}
                         >LEAVE SQUAD</button>
