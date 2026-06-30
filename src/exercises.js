@@ -68,8 +68,8 @@ export const BUILTIN_EXERCISES = [
   { name: 'DUMBBELL THRUSTERS', tip: 'Squat into shoulder press. One smooth motion.', equipment: ['dumbbell'] },
   { name: 'TRICEP KICKBACKS', tip: 'Upper arm parallel to floor. Don\'t swing.', equipment: ['dumbbell'] },
   { name: 'DUMBBELL FLOOR PRESS', tip: 'Elbows touch floor, then drive up.', equipment: ['dumbbell'] },
-  { name: 'DUMBBELL DEADLIFTS', tip: 'Hinge at hips. Back stays flat.', equipment: ['dumbbell'] },
-  { name: 'RENEGADE ROWS', tip: 'Plank position. Each side = 1 rep.', equipment: ['dumbbell'] },
+  { name: 'DUMBBELL DEADLIFTS', tip: 'Hinge at hips. Back stays flat. Go to Mid-shin', equipment: ['dumbbell'] },
+  { name: 'RENEGADE ROWS', tip: 'Plank position. Each side = 1 rep. Pull towards ribs. Wide legs', equipment: ['dumbbell'] },
   { name: 'DUMBBELL PULLOVERS', tip: 'Lying down. Stretch overhead, pull to chest.', equipment: ['dumbbell'] },
   // Add your dumbbell exercises here
 
