@@ -2906,7 +2906,8 @@ export default function DailyHundred() {
                         <div style={styles.squadCodeBlock}>
                           <div style={styles.squadCodeLabel}>INVITE CODE</div>
                           <div style={styles.squadCodeValue}>{sq.joinCode}</div>
-                          <div style={styles.squadCodeHint}>Share this code so others can join</div>
+                          <div style={styles.squadCodeHint}>Share this code for others to join your squad</div>
+                          <div style={styles.squadCodeHint}>Squads are capped at 4 members</div>
                         </div>
 
                         <button
@@ -3704,10 +3705,10 @@ const styles = {
   squadMemberRow2: { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 12px", borderRadius: 10, marginBottom: 6 },
   squadMemberName2: { fontFamily: "'Inter', sans-serif", fontSize: 14, fontWeight: 600 },
   squadMemberBadge: { fontFamily: "'JetBrains Mono', monospace", fontSize: 10, fontWeight: 700, letterSpacing: 1, padding: "5px 10px", borderRadius: 999 },
-  squadCodeBlock: { marginTop: 20, padding: "14px 16px", background: "var(--surface)", border: "1.5px solid var(--border)", borderRadius: 12, textAlign: "center" },
-  squadCodeLabel: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, letterSpacing: 2, fontWeight: 700, color: "var(--text-muted)", marginBottom: 8 },
-  squadCodeValue: { fontFamily: "'Archivo Black', sans-serif", fontSize: 32, letterSpacing: 8, color: "var(--accent)", marginBottom: 6 },
-  squadCodeHint: { fontFamily: "'Inter', sans-serif", fontSize: 12, color: "var(--text-muted)" },
+  squadCodeBlock: { marginTop: 16, padding: "10px 12px", background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 10, textAlign: "center" },
+  squadCodeLabel: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, letterSpacing: 2, fontWeight: 700, color: "var(--text-muted)", marginBottom: 4 },
+  squadCodeValue: { fontFamily: "'Archivo Black', sans-serif", fontSize: 24, letterSpacing: 6, color: "var(--accent)", marginBottom: 4 },
+  squadCodeHint: { fontFamily: "'Inter', sans-serif", fontSize: 11, color: "var(--text-muted)", lineHeight: 1.5 },
   squadHeader: { display: "flex", justifyContent: "space-between", alignItems: "flex-start" },
   squadMembers: { fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: "var(--text-muted)", marginTop: 4 },
   squadStreakBlock: { display: "flex", alignItems: "center", gap: 12 },
