@@ -1195,7 +1195,7 @@ export default function DailyHundred() {
         const days = mid === uid ? updatedWeekDays : (weekData[mid] || []);
         return weekDays.every((d) => days.includes(d));
       });
-      if (allComplete && newSaves < 3) newSaves = Math.min(3, newSaves + 1);
+      if (allComplete && newSaves < 5) newSaves = Math.min(5, newSaves + 1);
 
       const currentExercises = isNewDay ? {} : (data.memberExercises || {});
       const newExercises = exerciseName ? { ...currentExercises, [uid]: exerciseName } : currentExercises;
@@ -2837,7 +2837,7 @@ export default function DailyHundred() {
                             </div>
                           </div>
                           <div style={styles.squadDetailRule}>
-                            2 of {memberUids.length} must complete daily · saves auto-spend · earn saves with a perfect week
+                            50% of squad members must complete to save streak · 7 consecutive days earns a streak save · 5 saves max
                           </div>
                         </div>
 
