@@ -55,6 +55,7 @@ export const BUILTIN_EXERCISES = [
   { name: 'PUSH-UP MEDLEY', tip: 'Try 5x20 of Wide Arm, Diamond, Pike, T-Pushup, and Decline.', equipment: ['bodyweight'] },
   { name: 'POGO JUMPS', tip: 'Fast jumps and show some bounce.', equipment: ['bodyweight'] },
   { name: 'SQUAT THRUST', tip: 'Think of it as a half burpee. Drop to plank and back up quick.', equipment: ['bodyweight'] },
+  { name: 'BURPEES', tip: 'The one everyone fears. Can also step back and down for modification', equipment: ['bodyweight'] },
   // Add your bodyweight exercises here
 
   // ---- Dumbbell ----
