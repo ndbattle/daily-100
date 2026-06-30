@@ -102,7 +102,7 @@ export const BUILTIN_EXERCISES = [
   { name: 'BAND CLAMSHELLS', tip: 'Band above knees. Each side = 1 rep.', equipment: ['band'] },
   { name: 'BAND FACE PULLS', tip: 'Anchor high. Pull to forehead. Elbows up.', equipment: ['band'] },
   { name: 'BAND GOOD MORNINGS', tip: 'Band over shoulders. Hinge at hips.', equipment: ['band'] },
-  { name: 'BAND CHEST FLYES', tip: 'Anchor behind. Bring hands together at chest.', equipment: ['band'] },
+  { name: 'BAND CHEST FLY', tip: 'Anchor behind. Bring hands together at chest.', equipment: ['band'] },
   { name: 'BAND DEADLIFTS', tip: 'Stand on band. Hinge, drive through floor.', equipment: ['band'] },
   // Add your resistance band exercises here
 ];
