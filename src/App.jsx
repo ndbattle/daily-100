@@ -2837,7 +2837,9 @@ export default function DailyHundred() {
                             </div>
                           </div>
                           <div style={styles.squadDetailRule}>
-                            50% of squad members must complete to save streak · 7 consecutive days earns a streak save · 5 saves max
+                            <div>· 50% of squad members must complete to save streak</div>
+                            <div>· 7 consecutive days earns a streak save</div>
+                            <div>· 5 saves max</div>
                           </div>
                         </div>
 
@@ -3701,7 +3703,7 @@ const styles = {
   squadDetailStreakBlock: { textAlign: "center" },
   squadDetailStreakNum: { fontFamily: "'Archivo Black', sans-serif", fontSize: 32, color: "var(--accent)", lineHeight: 1, marginBottom: 4 },
   squadDetailStreakLabel: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, letterSpacing: 1.2, fontWeight: 700, color: "var(--text-muted)", lineHeight: 1.3 },
-  squadDetailRule: { fontFamily: "'Inter', sans-serif", fontSize: 11, color: "var(--text-muted)", lineHeight: 1.4, borderTop: "1px solid var(--border-soft)", paddingTop: 10 },
+  squadDetailRule: { fontFamily: "'Inter', sans-serif", fontSize: 11, color: "var(--text-muted)", lineHeight: 1.8, borderTop: "1px solid var(--border-soft)", paddingTop: 10, display: "flex", flexDirection: "column", gap: 2 },
   squadMemberRow2: { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 12px", borderRadius: 10, marginBottom: 6 },
   squadMemberName2: { fontFamily: "'Inter', sans-serif", fontSize: 14, fontWeight: 600 },
   squadMemberBadge: { fontFamily: "'JetBrains Mono', monospace", fontSize: 10, fontWeight: 700, letterSpacing: 1, padding: "5px 10px", borderRadius: 999 },
