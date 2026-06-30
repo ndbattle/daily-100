@@ -765,7 +765,7 @@ export default function DailyHundred() {
     setJustFinished(true);
     // Auto-mark completion in all squads this user belongs to
     if (squads.length > 0) {
-      squads.forEach((squad) => markSquadComplete(squad));
+      squads.forEach((squad) => markSquadComplete(squad, exercise.name));
     }
     // Haptic buzz on mobile when supported
     try {
@@ -1139,7 +1139,7 @@ export default function DailyHundred() {
   }
 
   // Mark today's workout complete for this user in a squad
-  async function markSquadComplete(squad) {
+  async function markSquadComplete(squad, exerciseName) {
     const uid = fbUidRef.current;
     if (!uid) return;
     const today = TODAY();
@@ -1150,7 +1150,7 @@ export default function DailyHundred() {
       const snap = await getDoc(ref);
       if (!snap.exists()) return;
       const data = snap.data();
-      // Reset completedToday if it's from a previous day
+      // Reset completedToday and memberExercises if it's from a previous day
       const isNewDay = data.completedTodayDate !== today;
       const currentCompleted = isNewDay ? [] : (data.completedToday || []);
       if (!isNewDay && currentCompleted.includes(uid)) return;
@@ -1197,9 +1197,13 @@ export default function DailyHundred() {
       });
       if (allComplete && newSaves < 3) newSaves = Math.min(3, newSaves + 1);
 
+      const currentExercises = isNewDay ? {} : (data.memberExercises || {});
+      const newExercises = exerciseName ? { ...currentExercises, [uid]: exerciseName } : currentExercises;
+
       await updateDoc(ref, {
         completedToday: newCompleted,
         completedTodayDate: today,
+        memberExercises: newExercises,
         streak: newStreak,
         bestStreak: newBest,
         lastStreakDate: newLastDate,
@@ -1210,11 +1214,11 @@ export default function DailyHundred() {
       // Update local state
       setSquads((prev) => prev.map((s) =>
         s.id === squad.id
-          ? { ...s, completedToday: newCompleted, completedTodayDate: today, streak: newStreak, bestStreak: newBest, lastStreakDate: newLastDate, saves: newSaves }
+          ? { ...s, completedToday: newCompleted, completedTodayDate: today, memberExercises: newExercises, streak: newStreak, bestStreak: newBest, lastStreakDate: newLastDate, saves: newSaves }
           : s
       ));
       if (activeSquad?.id === squad.id) {
-        setActiveSquad((s) => ({ ...s, completedToday: newCompleted, completedTodayDate: today, streak: newStreak, bestStreak: newBest, lastStreakDate: newLastDate, saves: newSaves }));
+        setActiveSquad((s) => ({ ...s, completedToday: newCompleted, completedTodayDate: today, memberExercises: newExercises, streak: newStreak, bestStreak: newBest, lastStreakDate: newLastDate, saves: newSaves }));
       }
     } catch (e) {
       console.error('markSquadComplete error', e);
@@ -2840,12 +2844,18 @@ export default function DailyHundred() {
                         <div style={styles.movesHeader}>TODAY · {completedToday.length}/{memberUids.length} DONE</div>
                         {memberUids.map((mid) => {
                           const name = memberNames[mid] || 'Member';
-                          const memberDone = completedToday.includes(mid);
+                          const memberDone = sq.completedTodayDate === TODAY() && completedToday.includes(mid);
+                          const memberExercise = memberDone ? (sq.memberExercises?.[mid] || null) : null;
                           const isMe = mid === uid;
                           return (
                             <div key={mid}>
                               <div style={{ ...styles.squadMemberRow2, background: isMe ? 'var(--surface)' : 'transparent', marginBottom: memberDone ? 2 : 6 }}>
-                                <div style={styles.squadMemberName2}>{name}{isMe ? ' (you)' : ''}</div>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                                  <div style={styles.squadMemberName2}>{name}{isMe ? ' (you)' : ''}</div>
+                                  {memberExercise && (
+                                    <div style={{ fontSize: 11, color: 'var(--text-muted)', letterSpacing: 0.5, textTransform: 'uppercase' }}>{memberExercise}</div>
+                                  )}
+                                </div>
                                 <div style={{ ...styles.squadMemberBadge, background: memberDone ? 'var(--accent)' : 'var(--border)', color: memberDone ? '#fff' : 'var(--text-muted)' }}>
                                   {memberDone ? '✓ DONE' : '⏳ YET'}
                                 </div>
