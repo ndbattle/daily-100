@@ -1797,7 +1797,7 @@ export default function DailyHundred() {
         <style>{cssText}</style>
         <div style={styles.frame}>
           <div style={styles.headerRow}>
-            <button style={styles.changeLink} onClick={finishWarmup}>← BACK</button>
+            <button style={styles.changeLink} onClick={finishWarmup}>← BACK TO SQUAD LIST</button>
             <div style={styles.kicker}>DAILY 100 · {new Date().toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</div>
             <button style={styles.iconBtn} onClick={() => { setShowSheet(true); setTab('log'); }}>☰</button>
           </div>
@@ -1869,7 +1869,7 @@ export default function DailyHundred() {
         <style>{cssText}</style>
         <div style={styles.frame}>
           <div style={styles.headerRow}>
-            <button style={styles.changeLink} onClick={finishCooldown}>← BACK</button>
+            <button style={styles.changeLink} onClick={finishCooldown}>← BACK TO SQUAD LIST</button>
             <div style={styles.kicker}>DAILY 100 · {new Date().toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</div>
             <button style={styles.iconBtn} onClick={() => { setShowSheet(true); setTab('log'); }}>☰</button>
           </div>
@@ -2109,7 +2109,7 @@ export default function DailyHundred() {
 
         {/* Session badges */}
         <div style={styles.sessionBadges}>
-          <button style={styles.changeLink} onClick={changeWorkout}>← BACK TO HOME</button>
+          <button style={styles.changeLink} onClick={changeWorkout}>← BACK TO SQUAD LIST TO HOME</button>
           <div style={styles.badge}>{target} REPS</div>
           {state.equipment.map((eq) => {
             const opt = EQUIPMENT_OPTIONS.find((o) => o.id === eq);
@@ -2819,7 +2819,7 @@ export default function DailyHundred() {
                     const myDone = completedToday.includes(uid);
                     return (
                       <>
-                        <button style={styles.backLink} onClick={() => { setSquadView('list'); setActiveSquad(null); }}>← BACK</button>
+                        <button style={styles.backLink} onClick={() => { setSquadView('list'); setActiveSquad(null); }}>← BACK TO SQUAD LIST</button>
                         <div style={styles.squadDetailCard}>
                           <div style={styles.squadDetailName}>{sq.name}</div>
                           <div style={styles.squadDetailStreakRow}>
@@ -2925,7 +2925,7 @@ export default function DailyHundred() {
                   if (squadView === 'create') {
                     return (
                       <>
-                        <button style={styles.backLink} onClick={() => { setSquadView('list'); setSquadError(''); }}>← BACK</button>
+                        <button style={styles.backLink} onClick={() => { setSquadView('list'); setSquadError(''); }}>← BACK TO SQUAD LIST</button>
                         <div style={styles.movesHeader}>NEW SQUAD</div>
                         {squadError && <div style={styles.authErrorText}>{squadError}</div>}
                         <div style={styles.formLabel}>SQUAD NAME</div>
@@ -2956,7 +2956,7 @@ export default function DailyHundred() {
                   if (squadView === 'join') {
                     return (
                       <>
-                        <button style={styles.backLink} onClick={() => { setSquadView('list'); setSquadError(''); }}>← BACK</button>
+                        <button style={styles.backLink} onClick={() => { setSquadView('list'); setSquadError(''); }}>← BACK TO SQUAD LIST</button>
                         <div style={styles.movesHeader}>JOIN A SQUAD</div>
                         {squadError && <div style={styles.authErrorText}>{squadError}</div>}
                         <div style={styles.formLabel}>6-CHARACTER CODE</div>
