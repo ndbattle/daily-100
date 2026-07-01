@@ -1799,7 +1799,7 @@ export default function DailyHundred() {
           <div style={styles.headerRow}>
             <button style={styles.changeLink} onClick={finishWarmup}>← BACK</button>
             <div style={styles.kicker}>DAILY 100 · {new Date().toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</div>
-            <button style={styles.iconBtn} onClick={() => { setShowSheet(true); setTab('log'); }}>☰</button>
+            <button style={styles.menuBtn} onClick={() => { setShowSheet(true); setTab('log'); }}>MENU</button>
           </div>
 
           <div style={styles.divider} />
@@ -1871,7 +1871,7 @@ export default function DailyHundred() {
           <div style={styles.headerRow}>
             <button style={styles.changeLink} onClick={finishCooldown}>← BACK</button>
             <div style={styles.kicker}>DAILY 100 · {new Date().toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</div>
-            <button style={styles.iconBtn} onClick={() => { setShowSheet(true); setTab('log'); }}>☰</button>
+            <button style={styles.menuBtn} onClick={() => { setShowSheet(true); setTab('log'); }}>MENU</button>
           </div>
 
           <div style={styles.divider} />
@@ -1964,7 +1964,7 @@ export default function DailyHundred() {
                 </span>
               </div>
             </div>
-            <button style={styles.iconBtn} onClick={() => { setShowSheet(true); setTab('log'); }}>☰</button>
+            <button style={styles.menuBtn} onClick={() => { setShowSheet(true); setTab('log'); }}>MENU</button>
           </div>
 
           <div style={styles.divider} />
@@ -2102,7 +2102,7 @@ export default function DailyHundred() {
               </span>
             </div>
           </div>
-          <button style={styles.iconBtn} onClick={() => { setShowSheet(true); setTab('log'); }}>☰</button>
+          <button style={styles.menuBtn} onClick={() => { setShowSheet(true); setTab('log'); }}>MENU</button>
         </div>
 
         <div style={styles.divider} />
@@ -3440,6 +3440,7 @@ const styles = {
   streakNum: { fontFamily: "'Archivo Black', sans-serif", fontSize: 54, lineHeight: 0.85, color: 'var(--accent)' },
   streakLabel: { fontFamily: "'JetBrains Mono', monospace", fontSize: 10, letterSpacing: 1.5, fontWeight: 700, color: 'var(--text)', lineHeight: 1.15 },
   iconBtn: { width: 42, height: 42, border: '1.5px solid var(--border)', background: 'var(--surface)', fontSize: 18, cursor: 'pointer', fontFamily: "'JetBrains Mono', monospace", color: 'var(--text)', borderRadius: 12, boxShadow: '0 1px 3px var(--shadow-sm)', display: 'flex', alignItems: 'center', justifyContent: 'center' },
+  menuBtn: { height: 42, padding: '0 14px', border: '1.5px solid var(--border)', background: 'var(--surface)', fontSize: 11, fontWeight: 700, letterSpacing: 1.5, cursor: 'pointer', fontFamily: "'JetBrains Mono', monospace", color: 'var(--text)', borderRadius: 12, boxShadow: '0 1px 3px var(--shadow-sm)', display: 'flex', alignItems: 'center', justifyContent: 'center' },
   divider: { height: 1, background: 'var(--border)', margin: '4px 0 24px' },
 
   // Warmup bar (on home screen)
