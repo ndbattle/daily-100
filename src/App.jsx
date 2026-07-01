@@ -2670,7 +2670,7 @@ export default function DailyHundred() {
             return (
               <>
                 <div style={styles.subtabRow}>
-                  {['friends', 'requests', 'find', 'squads'].map((v) => {
+                  {['friends', 'squads', 'requests', 'find'].map((v) => {
                     const labels = { friends: 'FRIENDS', requests: 'REQUESTS', find: 'FIND', squads: 'SQUADS' };
                     const active = friendsView === v;
                     const count = v === 'requests' ? state.incomingRequests.length : 0;
