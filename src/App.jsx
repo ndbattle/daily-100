@@ -2813,7 +2813,7 @@ export default function DailyHundred() {
                   // ---- DETAIL VIEW ----
                   if (squadView === 'detail' && activeSquad) {
                     const sq = squads.find((s) => s.id === activeSquad.id) || activeSquad;
-                    const completedToday = sq.completedToday || [];
+                    const completedToday = sq.completedTodayDate === TODAY() ? (sq.completedToday || []) : [];
                     const memberUids = sq.memberUids || [];
                     const memberNames = sq.memberNames || {};
                     const myDone = completedToday.includes(uid);
@@ -2846,7 +2846,7 @@ export default function DailyHundred() {
                         <div style={styles.movesHeader}>TODAY · {completedToday.length}/{memberUids.length} DONE</div>
                         {memberUids.map((mid) => {
                           const name = memberNames[mid] || 'Member';
-                          const memberDone = sq.completedTodayDate === TODAY() && completedToday.includes(mid);
+                          const memberDone = completedToday.includes(mid);
                           const memberExercise = memberDone ? (sq.memberExercises?.[mid] || null) : null;
                           const isMe = mid === uid;
                           return (
@@ -3003,7 +3003,7 @@ export default function DailyHundred() {
                         </div>
                       )}
                       {squads.map((sq) => {
-                        const completedToday = sq.completedToday || [];
+                        const completedToday = sq.completedTodayDate === TODAY() ? (sq.completedToday || []) : [];
                         const memberCount = sq.memberUids?.length || 1;
                         const threshold = Math.ceil(memberCount * 0.5);
                         const onTrack = completedToday.length >= threshold;
