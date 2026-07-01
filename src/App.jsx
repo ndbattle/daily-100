@@ -1797,7 +1797,7 @@ export default function DailyHundred() {
         <style>{cssText}</style>
         <div style={styles.frame}>
           <div style={styles.headerRow}>
-            <button style={styles.changeLink} onClick={finishWarmup}>← BACK TO SQUAD LIST</button>
+            <button style={styles.changeLink} onClick={finishWarmup}>← BACK</button>
             <div style={styles.kicker}>DAILY 100 · {new Date().toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</div>
             <button style={styles.iconBtn} onClick={() => { setShowSheet(true); setTab('log'); }}>☰</button>
           </div>
@@ -1869,7 +1869,7 @@ export default function DailyHundred() {
         <style>{cssText}</style>
         <div style={styles.frame}>
           <div style={styles.headerRow}>
-            <button style={styles.changeLink} onClick={finishCooldown}>← BACK TO SQUAD LIST</button>
+            <button style={styles.changeLink} onClick={finishCooldown}>← BACK</button>
             <div style={styles.kicker}>DAILY 100 · {new Date().toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</div>
             <button style={styles.iconBtn} onClick={() => { setShowSheet(true); setTab('log'); }}>☰</button>
           </div>
@@ -2109,7 +2109,7 @@ export default function DailyHundred() {
 
         {/* Session badges */}
         <div style={styles.sessionBadges}>
-          <button style={styles.changeLink} onClick={changeWorkout}>← BACK TO SQUAD LIST TO HOME</button>
+          <button style={styles.changeLink} onClick={changeWorkout}>← BACK</button>
           <div style={styles.badge}>{target} REPS</div>
           {state.equipment.map((eq) => {
             const opt = EQUIPMENT_OPTIONS.find((o) => o.id === eq);
