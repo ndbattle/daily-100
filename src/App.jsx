@@ -3696,7 +3696,7 @@ const styles = {
   squadStreakMiniLabel: { color: "var(--text-muted)" },
   squadSaveChip: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, fontWeight: 700, letterSpacing: 0.5, color: "var(--text-muted)", marginLeft: "auto" },
   squadMyStatus: { fontFamily: "'JetBrains Mono', monospace", fontSize: 10, fontWeight: 700, letterSpacing: 1 },
-  backLink: { background: "none", border: "none", color: "var(--accent)", fontFamily: "'JetBrains Mono', monospace", fontSize: 11, fontWeight: 700, letterSpacing: 1.5, cursor: "pointer", padding: "0 0 16px", display: "block" },
+  backLink: { fontFamily: "'JetBrains Mono', monospace", fontSize: 13, fontWeight: 700, letterSpacing: 1.5, cursor: "pointer", padding: "13px 0", display: "block", width: "100%", textAlign: "center", background: "#000", color: "#fff", border: "1.5px solid #000", borderRadius: 10, marginBottom: 16 },
   squadDetailCard: { background: "var(--surface)", border: "1.5px solid var(--border)", borderRadius: 16, padding: "18px 16px", marginBottom: 18 },
   squadDetailName: { fontFamily: "'Archivo Black', sans-serif", fontSize: 24, letterSpacing: -0.5, lineHeight: 1, marginBottom: 16 },
   squadDetailStreakRow: { display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10, marginBottom: 12 },
