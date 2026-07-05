@@ -30,7 +30,7 @@ firebase.initializeApp({
   projectId: 'daily-100',
   storageBucket: 'daily-100.firebasestorage.app',
   messagingSenderId: '238608869',
-  appId: 'REPLACE_WITH_YOUR_APP_ID',
+  appId: '1:238608869210:web:c60db1eef1a155f1b7f563',
 });
 // ⬆️⬆️⬆️ PASTE YOUR CONFIG VALUES HERE ⬆️⬆️⬆️
 
