@@ -10,6 +10,10 @@ import {
   sendPasswordResetEmail,
 } from 'firebase/auth';
 import { doc, getDoc, setDoc, collection, query, where, getDocs, updateDoc, arrayUnion, arrayRemove, deleteDoc, deleteField, onSnapshot } from 'firebase/firestore';
+import { getMessaging, getToken, isSupported as messagingIsSupported } from 'firebase/messaging';
+
+// Web Push (VAPID) public key from Firebase console → Cloud Messaging → Web Push certificates
+const VAPID_KEY = 'BJLJ3qHRE-aKEcHsue0alxTjf97TPC0VjIe3sjJZQc99Q6uM4f_194sDPjiAMS6fDwh9mDv_b61IN91GVgwYo_s';
 
 const EQUIPMENT_OPTIONS = [
   { id: 'bodyweight', label: 'BODYWEIGHT' },
@@ -215,6 +219,9 @@ const DEFAULT_STATE = {
   adminMode: false,
   theme: 'auto', // 'light' | 'dark' | 'auto'
   revealedDate: null, // last date the dramatic reveal played
+  // Notifications
+  timezone: null,               // IANA timezone, e.g. 'America/New_York' — used by reminder function
+  notificationsEnabled: false,  // user opted in to push reminders on at least one device
 };
 
 // Fields we don't persist to the cloud (UI-only or device-only).
@@ -486,6 +493,8 @@ export default function DailyHundred() {
   const [revealActive, setRevealActive] = useState(false);
   const [revealName, setRevealName] = useState('');
   const [revealLanded, setRevealLanded] = useState(false);
+  const [notifBusy, setNotifBusy] = useState(false);
+  const [notifNudgeDismissed, setNotifNudgeDismissed] = useState(false); // home-screen nudge (session-only)
   const revealTimeouts = useRef([]);
   const revealPickedRef = useRef(null); // date of the expanded row
 
@@ -595,6 +604,9 @@ export default function DailyHundred() {
             : { ...DEFAULT_STATE };
           loaded = applyDayRollover(loaded);
           loaded.user = profile;
+          // Capture the device timezone so the reminder Cloud Function knows
+          // when "6pm local" is for this user. Refreshed on every sign-in.
+          try { loaded.timezone = Intl.DateTimeFormat().resolvedOptions().timeZone; } catch {}
           // Keep pending selections aligned with whatever we loaded.
           setPendingTarget(loaded.target || 100);
           setPendingEquipment(loaded.equipment && loaded.equipment.length ? loaded.equipment : ['bodyweight']);
@@ -606,7 +618,9 @@ export default function DailyHundred() {
       } catch {
         // Offline or rules issue: still let them in with identity. Start clean
         // rather than exposing any local-only data under the new account.
-        setState((prev) => ({ ...DEFAULT_STATE, user: profile }));
+        let tz = null;
+        try { tz = Intl.DateTimeFormat().resolvedOptions().timeZone; } catch {}
+        setState((prev) => ({ ...DEFAULT_STATE, user: profile, timezone: tz }));
         cloudLoadedRef.current = true;
       }
       setLoading(false);
@@ -676,6 +690,66 @@ export default function DailyHundred() {
 
   function setTheme(t) {
     setState({ ...state, theme: t });
+  }
+
+  // ---- Push notification handlers ----
+  async function enableNotifications() {
+    if (!fbUidRef.current) return;
+    setNotifBusy(true);
+    try {
+      const supported = await messagingIsSupported().catch(() => false);
+      if (!supported || typeof Notification === 'undefined') {
+        alert('Notifications are not supported in this browser.\n\nOn iPhone/iPad: add Daily 100 to your Home Screen first, then enable reminders from there.');
+        setNotifBusy(false);
+        return;
+      }
+      const permission = await Notification.requestPermission();
+      if (permission !== 'granted') {
+        setNotifBusy(false);
+        return;
+      }
+      const reg = await navigator.serviceWorker.register('/firebase-messaging-sw.js');
+      const messaging = getMessaging();
+      const token = await getToken(messaging, {
+        vapidKey: VAPID_KEY,
+        serviceWorkerRegistration: reg,
+      });
+      if (token) {
+        // Store this device's token on the user doc. arrayUnion means
+        // multiple devices (laptop + iPad) can each register safely.
+        await setDoc(
+          doc(db, 'users', fbUidRef.current),
+          { fcmTokens: arrayUnion(token) },
+          { merge: true }
+        );
+        setState((prev) => ({ ...prev, notificationsEnabled: true }));
+      }
+    } catch (e) {
+      console.error('enableNotifications error', e);
+      alert('Could not enable notifications. Try again.');
+    }
+    setNotifBusy(false);
+  }
+
+  async function disableNotifications() {
+    setNotifBusy(true);
+    try {
+      const reg = await navigator.serviceWorker.getRegistration('/firebase-messaging-sw.js');
+      if (reg) {
+        const messaging = getMessaging();
+        const token = await getToken(messaging, {
+          vapidKey: VAPID_KEY,
+          serviceWorkerRegistration: reg,
+        }).catch(() => null);
+        if (token && fbUidRef.current) {
+          await updateDoc(doc(db, 'users', fbUidRef.current), { fcmTokens: arrayRemove(token) });
+        }
+      }
+    } catch {
+      // Even if token cleanup fails, still flip the flag off locally.
+    }
+    setState((prev) => ({ ...prev, notificationsEnabled: false }));
+    setNotifBusy(false);
   }
 
   // One real-time collection listener — keeps squads AND reactions live for all members.
@@ -984,11 +1058,7 @@ export default function DailyHundred() {
   // Create a new squad in Firestore
   async function createSquad() {
     const uid = fbUidRef.current;
-    console.log('[Squad] createSquad called, uid:', uid, 'user:', state?.user?.name);
-    if (!uid || !state?.user) {
-      console.log('[Squad] Bailing — no uid or user');
-      return;
-    }
+    if (!uid || !state?.user) return;
     const name = newSquadName.trim();
     if (!name) { setSquadError('Give your squad a name.'); return; }
     if (squads.length >= 3) { setSquadError('You can be in a maximum of 3 squads.'); return; }
@@ -1021,14 +1091,12 @@ export default function DailyHundred() {
         saves: 0,
         createdAt: now,
       };
-      console.log('[Squad] Generated code:', code, 'Writing to Firestore...');
       await setDoc(squadRef, squadDoc);
-      console.log('[Squad] Created successfully:', squadRef.id);
       setSquads((prev) => [...prev, { id: squadRef.id, ...squadDoc }]);
       setNewSquadName('');
       setSquadView('list');
     } catch (e) {
-      console.error('[Squad] Error creating squad:', e.code, e.message);
+      console.error('createSquad error', e);
       setSquadError('Could not create squad. Try again.');
     }
     setSquadBusy(false);
@@ -1975,6 +2043,35 @@ export default function DailyHundred() {
             <span style={styles.warmupBarBtn}>WARM UP →</span>
           </button>
 
+          {/* Reminder nudge (option A) — shows until enabled or dismissed this session */}
+          {!state.notificationsEnabled &&
+            !notifNudgeDismissed &&
+            !(typeof Notification !== 'undefined' && Notification.permission === 'denied') && (
+              <div style={styles.notifNudge}>
+                <div style={styles.notifNudgeBody}>
+                  <div style={styles.notifNudgeTitle}>NEVER MISS A DAY</div>
+                  <div style={styles.notifNudgeSub}>
+                    Get a 6pm reminder if you haven't done your 100.
+                  </div>
+                </div>
+                <div style={styles.notifNudgeActions}>
+                  <button
+                    style={{ ...styles.notifNudgeOn, opacity: notifBusy ? 0.6 : 1 }}
+                    onClick={enableNotifications}
+                    disabled={notifBusy}
+                  >
+                    {notifBusy ? '…' : 'TURN ON'}
+                  </button>
+                  <button
+                    style={styles.notifNudgeDismiss}
+                    onClick={() => setNotifNudgeDismissed(true)}
+                  >
+                    NOT NOW
+                  </button>
+                </div>
+              </div>
+            )}
+
           {/* Target picker */}
           <div style={styles.section}>
             <button
@@ -2564,6 +2661,35 @@ export default function DailyHundred() {
                     </button>
                   );
                 })}
+              </div>
+
+              <div style={styles.sectionHeader}>
+                <span>REMINDERS</span>
+              </div>
+              <div style={styles.notifBlock}>
+                <div style={{ minWidth: 0 }}>
+                  <div style={styles.notifTitle}>DAILY 6PM REMINDER</div>
+                  <div style={styles.notifSub}>
+                    {typeof Notification !== 'undefined' && Notification.permission === 'denied'
+                      ? 'Blocked in your browser. Allow notifications for this site in your browser settings, then try again.'
+                      : state.notificationsEnabled
+                        ? "On — we'll nudge you at 6pm if you haven't finished."
+                        : "Get a push at 6pm if you haven't done today's reps."}
+                  </div>
+                </div>
+                <button
+                  style={{
+                    ...styles.notifBtn,
+                    background: state.notificationsEnabled ? 'var(--surface)' : 'var(--accent-gradient)',
+                    color: state.notificationsEnabled ? 'var(--text)' : '#fff',
+                    border: state.notificationsEnabled ? '1.5px solid var(--border)' : 'none',
+                    opacity: notifBusy ? 0.6 : 1,
+                  }}
+                  onClick={state.notificationsEnabled ? disableNotifications : enableNotifications}
+                  disabled={notifBusy}
+                >
+                  {notifBusy ? '…' : state.notificationsEnabled ? 'ON' : 'TURN ON'}
+                </button>
               </div>
 
               <div style={styles.accountBlock}>
@@ -3448,6 +3574,15 @@ const styles = {
   warmupQuestion: { fontFamily: "'Inter', sans-serif", fontSize: 14, fontWeight: 600, color: 'var(--text)' },
   warmupBarBtn: { fontFamily: "'JetBrains Mono', monospace", fontSize: 11, fontWeight: 700, letterSpacing: 1.5, color: 'var(--accent)' },
 
+  // Home-screen reminder nudge (option A — dismissible)
+  notifNudge: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 14, width: '100%', padding: '16px 18px', background: 'var(--accent-gradient)', border: 'none', borderRadius: 16, marginBottom: 22, boxShadow: '0 6px 18px var(--accent-shadow-md)' },
+  notifNudgeBody: { minWidth: 0, textAlign: 'left' },
+  notifNudgeTitle: { fontFamily: "'Archivo Black', sans-serif", fontSize: 15, lineHeight: 1.1, color: '#fff', marginBottom: 4 },
+  notifNudgeSub: { fontFamily: "'Inter', sans-serif", fontSize: 12, color: 'rgba(255,255,255,0.9)', lineHeight: 1.4 },
+  notifNudgeActions: { display: 'flex', flexDirection: 'column', gap: 6, flexShrink: 0 },
+  notifNudgeOn: { fontFamily: "'JetBrains Mono', monospace", fontSize: 10, fontWeight: 700, letterSpacing: 1.5, padding: '10px 14px', background: '#fff', color: 'var(--accent)', border: 'none', cursor: 'pointer', borderRadius: 10, whiteSpace: 'nowrap' },
+  notifNudgeDismiss: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, fontWeight: 700, letterSpacing: 1, padding: '6px 0', background: 'transparent', color: 'rgba(255,255,255,0.85)', border: 'none', cursor: 'pointer' },
+
   // Warmup screen
   warmupTitle: { fontFamily: "'Archivo Black', sans-serif", fontSize: 42, lineHeight: 0.95, margin: '0 0 6px', letterSpacing: -1.5, color: 'var(--text)' },
   warmupSubtitle: { fontFamily: "'JetBrains Mono', monospace", fontSize: 11, letterSpacing: 1.5, fontWeight: 700, color: 'var(--text-muted)', marginBottom: 4 },
@@ -3619,6 +3754,13 @@ const styles = {
   accountBlock: { marginTop: 24, padding: '16px', background: 'var(--surface)', border: '1.5px solid var(--border)', borderRadius: 14, display: 'flex', flexDirection: 'column', gap: 14, boxShadow: '0 1px 3px var(--shadow-xs)' },
   themeRow: { display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, marginBottom: 4 },
   themeBtn: { fontFamily: "'JetBrains Mono', monospace", fontSize: 11, fontWeight: 700, letterSpacing: 1.5, padding: '12px 0', border: '1.5px solid var(--border)', cursor: 'pointer', borderRadius: 10, boxShadow: '0 1px 2px var(--shadow-xs)' },
+
+  // Reminders (notifications) — MENU → LOG tab toggle block
+  notifBlock: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 14, padding: '14px 16px', background: 'var(--surface)', border: '1.5px solid var(--border)', borderRadius: 14, marginBottom: 4, boxShadow: '0 1px 3px var(--shadow-xs)' },
+  notifTitle: { fontFamily: "'Archivo Black', sans-serif", fontSize: 13, lineHeight: 1.1, marginBottom: 4 },
+  notifSub: { fontFamily: "'Inter', sans-serif", fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.4 },
+  notifBtn: { fontFamily: "'JetBrains Mono', monospace", fontSize: 10, fontWeight: 700, letterSpacing: 1.5, padding: '10px 16px', cursor: 'pointer', borderRadius: 10, flexShrink: 0, boxShadow: '0 2px 8px var(--accent-shadow-sm)' },
+
   accountInfo: { minWidth: 0 },
   accountName: { fontFamily: "'Archivo Black', sans-serif", fontSize: 14, lineHeight: 1.1 },
   accountEmail: { fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: 'var(--text-muted)', marginTop: 3, letterSpacing: 0.5, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
