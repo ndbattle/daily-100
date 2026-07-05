@@ -28,7 +28,7 @@ firebase.initializeApp({
   apiKey: 'AIzaSyBhvKKSks3zjyYnULM4KBJTbbK833Kw2zQ',
   authDomain: 'daily-100.firebaseapp.com',
   projectId: 'daily-100',
-  storageBucket: 'REPLACE_WITH_YOUR_STORAGE_BUCKET',
+  storageBucket: 'daily-100.firebasestorage.app',
   messagingSenderId: 'REPLACE_WITH_YOUR_SENDER_ID',
   appId: 'REPLACE_WITH_YOUR_APP_ID',
 });
