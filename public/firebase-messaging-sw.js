@@ -26,7 +26,7 @@ importScripts('https://www.gstatic.com/firebasejs/10.12.2/firebase-messaging-com
 // ⬇️⬇️⬇️ PASTE YOUR CONFIG VALUES HERE (copy from src/firebase.js) ⬇️⬇️⬇️
 firebase.initializeApp({
   apiKey: 'AIzaSyBhvKKSks3zjyYnULM4KBJTbbK833Kw2zQ',
-  authDomain: 'REPLACE_WITH_YOUR_AUTH_DOMAIN',
+  authDomain: 'daily-100.firebaseapp.com',
   projectId: 'REPLACE_WITH_YOUR_PROJECT_ID',
   storageBucket: 'REPLACE_WITH_YOUR_STORAGE_BUCKET',
   messagingSenderId: 'REPLACE_WITH_YOUR_SENDER_ID',
