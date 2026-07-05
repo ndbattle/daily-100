@@ -29,7 +29,7 @@ firebase.initializeApp({
   authDomain: 'daily-100.firebaseapp.com',
   projectId: 'daily-100',
   storageBucket: 'daily-100.firebasestorage.app',
-  messagingSenderId: 'REPLACE_WITH_YOUR_SENDER_ID',
+  messagingSenderId: '238608869',
   appId: 'REPLACE_WITH_YOUR_APP_ID',
 });
 // ⬆️⬆️⬆️ PASTE YOUR CONFIG VALUES HERE ⬆️⬆️⬆️
