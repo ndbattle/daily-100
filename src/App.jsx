@@ -213,7 +213,6 @@ const DEFAULT_STATE = {
   customExercises: [],
   disabledBuiltins: [],
   adminMode: false,
-  theme: 'auto', // 'light' | 'dark' | 'auto'
   revealedDate: null, // last date the dramatic reveal played
 };
 
@@ -645,39 +644,6 @@ export default function DailyHundred() {
     };
   }, [state]);
 
-  // Apply theme to document root so CSS variables cascade everywhere
-  useEffect(() => {
-    if (typeof document === 'undefined') return;
-    const pref = state?.theme || 'auto';
-    const apply = () => {
-      let resolved = pref;
-      if (pref === 'auto') {
-        const prefersDark = typeof window !== 'undefined' &&
-          window.matchMedia &&
-          window.matchMedia('(prefers-color-scheme: dark)').matches;
-        resolved = prefersDark ? 'dark' : 'light';
-      }
-      document.documentElement.setAttribute('data-theme', resolved);
-    };
-    apply();
-
-    // Listen to system theme changes when in auto mode
-    if (pref === 'auto' && typeof window !== 'undefined' && window.matchMedia) {
-      const mq = window.matchMedia('(prefers-color-scheme: dark)');
-      const handler = () => apply();
-      if (mq.addEventListener) mq.addEventListener('change', handler);
-      else if (mq.addListener) mq.addListener(handler);
-      return () => {
-        if (mq.removeEventListener) mq.removeEventListener('change', handler);
-        else if (mq.removeListener) mq.removeListener(handler);
-      };
-    }
-  }, [state?.theme]);
-
-  function setTheme(t) {
-    setState({ ...state, theme: t });
-  }
-
   // One real-time collection listener — keeps squads AND reactions live for all members.
   // Using a collection query (list permission) instead of per-doc listeners (get permission)
   // so that non-creator members can receive updates too.
@@ -1017,7 +983,8 @@ export default function DailyHundred() {
         lastStreakDate: null,
         completedToday: [], // uids who completed today
         completedTodayDate: null, // local date string for completedToday
-        weekCompletions: {}, // { uid: [dates this week completed] }
+        allCompleteStreak: 0, // consecutive days ALL members completed
+        allCompleteStreakDate: null, // local date string of last all-complete day
         saves: 0,
         createdAt: now,
       };
@@ -1183,19 +1150,20 @@ export default function DailyHundred() {
         newLastDate = today;
       }
 
-      // Track weekly completions for save earning
-      const weekKey = getWeekKey();
-      const weekData = data.weekCompletions || {};
-      const myWeekDays = weekData[uid] || [];
-      const updatedWeekDays = myWeekDays.includes(today) ? myWeekDays : [...myWeekDays, today];
-
-      // Check if all members completed all 7 days this week → earn a save
-      const weekDays = getWeekDays();
-      const allComplete = data.memberUids.every((mid) => {
-        const days = mid === uid ? updatedWeekDays : (weekData[mid] || []);
-        return weekDays.every((d) => days.includes(d));
-      });
-      if (allComplete && newSaves < 5) newSaves = Math.min(5, newSaves + 1);
+      // Track consecutive days where ALL members completed → earn a save every 7 in a row
+      let newAllCompleteStreak = data.allCompleteStreak || 0;
+      let newAllCompleteDate = data.allCompleteStreakDate || null;
+      if (newCompleted.length >= memberCount && data.allCompleteStreakDate !== today) {
+        const yDate = new Date();
+        yDate.setDate(yDate.getDate() - 1);
+        const yStr = `${yDate.getFullYear()}-${String(yDate.getMonth() + 1).padStart(2, '0')}-${String(yDate.getDate()).padStart(2, '0')}`;
+        newAllCompleteStreak = (data.allCompleteStreakDate === yStr) ? newAllCompleteStreak + 1 : 1;
+        newAllCompleteDate = today;
+        if (newAllCompleteStreak >= 7 && newSaves < 5) {
+          newSaves = newSaves + 1;
+          newAllCompleteStreak = 0;
+        }
+      }
 
       const currentExercises = isNewDay ? {} : (data.memberExercises || {});
       const newExercises = exerciseName ? { ...currentExercises, [uid]: exerciseName } : currentExercises;
@@ -1208,44 +1176,22 @@ export default function DailyHundred() {
         bestStreak: newBest,
         lastStreakDate: newLastDate,
         saves: newSaves,
-        [`weekCompletions.${uid}`]: updatedWeekDays,
+        allCompleteStreak: newAllCompleteStreak,
+        allCompleteStreakDate: newAllCompleteDate,
       });
 
       // Update local state
       setSquads((prev) => prev.map((s) =>
         s.id === squad.id
-          ? { ...s, completedToday: newCompleted, completedTodayDate: today, memberExercises: newExercises, streak: newStreak, bestStreak: newBest, lastStreakDate: newLastDate, saves: newSaves }
+          ? { ...s, completedToday: newCompleted, completedTodayDate: today, memberExercises: newExercises, streak: newStreak, bestStreak: newBest, lastStreakDate: newLastDate, saves: newSaves, allCompleteStreak: newAllCompleteStreak, allCompleteStreakDate: newAllCompleteDate }
           : s
       ));
       if (activeSquad?.id === squad.id) {
-        setActiveSquad((s) => ({ ...s, completedToday: newCompleted, completedTodayDate: today, memberExercises: newExercises, streak: newStreak, bestStreak: newBest, lastStreakDate: newLastDate, saves: newSaves }));
+        setActiveSquad((s) => ({ ...s, completedToday: newCompleted, completedTodayDate: today, memberExercises: newExercises, streak: newStreak, bestStreak: newBest, lastStreakDate: newLastDate, saves: newSaves, allCompleteStreak: newAllCompleteStreak, allCompleteStreakDate: newAllCompleteDate }));
       }
     } catch (e) {
       console.error('markSquadComplete error', e);
     }
-  }
-
-  // Week helpers — use local dates (same as TODAY()) not UTC
-  function getWeekKey() {
-    const d = new Date();
-    const day = d.getDay(); // 0=Sun
-    const monday = new Date(d);
-    monday.setDate(d.getDate() - (day === 0 ? 6 : day - 1));
-    return `${monday.getFullYear()}-${String(monday.getMonth() + 1).padStart(2, '0')}-${String(monday.getDate()).padStart(2, '0')}`;
-  }
-
-  function getWeekDays() {
-    const days = [];
-    const d = new Date();
-    const day = d.getDay();
-    const monday = new Date(d);
-    monday.setDate(d.getDate() - (day === 0 ? 6 : day - 1));
-    for (let i = 0; i < 7; i++) {
-      const dd = new Date(monday);
-      dd.setDate(monday.getDate() + i);
-      days.push(`${dd.getFullYear()}-${String(dd.getMonth() + 1).padStart(2, '0')}-${String(dd.getDate()).padStart(2, '0')}`);
-    }
-    return days;
   }
 
   function deleteSquad(squadId) {
@@ -1261,8 +1207,8 @@ export default function DailyHundred() {
 
   function runRevealSequence(pool, picked) {
     // Slot machine: names tick by, slowing dramatically, landing on picked
-    // Total ~2.5s of cycling + 1.1s hold on landed = ~3.6s end-to-end
-    const delays = [60, 60, 60, 80, 80, 100, 130, 170, 220, 290, 380, 500, 700, 1000];
+    // Total ~3.5s of cycling + 2.5s hold on landed = ~6s end-to-end
+    const delays = [55, 55, 55, 73, 73, 91, 119, 155, 201, 265, 347, 457, 640, 914];
     let cumulative = 0;
     delays.forEach((delay, i) => {
       cumulative += delay;
@@ -1291,7 +1237,7 @@ export default function DailyHundred() {
       revealTimeouts.current.push(id);
     });
     // After hold on the landed name, commit the session
-    const commitId = setTimeout(() => commitSession(picked, true), cumulative + 1100);
+    const commitId = setTimeout(() => commitSession(picked, true), cumulative + 2500);
     revealTimeouts.current.push(commitId);
   }
 
@@ -2539,33 +2485,6 @@ export default function DailyHundred() {
                 );
               })()}
 
-              <div style={styles.sectionHeader}>
-                <span>APPEARANCE</span>
-              </div>
-              <div style={styles.themeRow}>
-                {[
-                  { id: 'light', label: 'LIGHT' },
-                  { id: 'dark', label: 'DARK' },
-                  { id: 'auto', label: 'AUTO' },
-                ].map((opt) => {
-                  const active = (state.theme || 'auto') === opt.id;
-                  return (
-                    <button
-                      key={opt.id}
-                      onClick={() => setTheme(opt.id)}
-                      style={{
-                        ...styles.themeBtn,
-                        background: active ? 'var(--text)' : 'var(--surface)',
-                        color: active ? 'var(--bg-solid)' : 'var(--text)',
-                        borderColor: active ? 'var(--text)' : 'var(--border)',
-                      }}
-                    >
-                      {opt.label}
-                    </button>
-                  );
-                })}
-              </div>
-
               <div style={styles.accountBlock}>
                 <div style={styles.accountInfo}>
                   <div style={styles.accountName}>{state.user.name}</div>
@@ -3266,47 +3185,6 @@ const cssText = `
   --scrollbar: rgba(0,0,0,0.15);
 }
 
-html[data-theme="dark"] {
-  --bg: linear-gradient(180deg, #1a1410 0%, #14100c 100%);
-  --bg-solid: #14100c;
-  --text: #f5ede0;
-  --text-muted: #8b8278;
-  --text-subtle: #5a5048;
-  --text-faint: #6a6058;
-  --surface: #221b15;
-  --surface-muted: #1a1410;
-  --surface-input: #312820;
-  --border: #332a23;
-  --border-soft: #2a221d;
-  --border-input: #4a3f35;
-  --divider: #2a221d;
-  --accent: #e8442f;
-  --accent-light: #f25138;
-  --accent-hilite: #ff8a6f;
-  --accent-gradient: linear-gradient(135deg, #f25138 0%, #e8442f 100%);
-  --accent-shadow-sm: rgba(232,68,47,0.35);
-  --accent-shadow-md: rgba(232,68,47,0.40);
-  --accent-shadow-lg: rgba(232,68,47,0.45);
-  --gold: #ffd700;
-  --dark-card-bg: linear-gradient(160deg, #2f261e 0%, #1a1410 100%);
-  --dark-card-text: #f5ede0;
-  --dark-card-muted: #a89e92;
-  --dark-card-border: rgba(255,255,255,0.08);
-  --dark-card-accent: #ff8a6f;
-  --shadow-xs: rgba(0,0,0,0.25);
-  --shadow-sm: rgba(0,0,0,0.30);
-  --shadow-md: rgba(0,0,0,0.40);
-  --shadow-lg: rgba(0,0,0,0.60);
-  --shadow-charcoal: rgba(0,0,0,0.50);
-  --overlay: rgba(0,0,0,0.70);
-  --countdown-overlay: rgba(0,0,0,0.92);
-  --progress-track: #2a221d;
-  --medal-icon-bg: #2a221d;
-  --target-faint: #4a4338;
-  --equip-check-empty: #3d342c;
-  --scrollbar: rgba(255,255,255,0.15);
-}
-
 html { background: var(--bg-solid); }
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 @keyframes flashIn {
@@ -3617,8 +3495,6 @@ const styles = {
   historyReps: { fontFamily: "'JetBrains Mono', monospace", fontWeight: 700, textAlign: 'right', color: 'var(--accent)' },
   emptyHistory: { padding: '40px 0', textAlign: 'center', color: 'var(--text-muted)', fontSize: 13 },
   accountBlock: { marginTop: 24, padding: '16px', background: 'var(--surface)', border: '1.5px solid var(--border)', borderRadius: 14, display: 'flex', flexDirection: 'column', gap: 14, boxShadow: '0 1px 3px var(--shadow-xs)' },
-  themeRow: { display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, marginBottom: 4 },
-  themeBtn: { fontFamily: "'JetBrains Mono', monospace", fontSize: 11, fontWeight: 700, letterSpacing: 1.5, padding: '12px 0', border: '1.5px solid var(--border)', cursor: 'pointer', borderRadius: 10, boxShadow: '0 1px 2px var(--shadow-xs)' },
   accountInfo: { minWidth: 0 },
   accountName: { fontFamily: "'Archivo Black', sans-serif", fontSize: 14, lineHeight: 1.1 },
   accountEmail: { fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: 'var(--text-muted)', marginTop: 3, letterSpacing: 0.5, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
