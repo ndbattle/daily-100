@@ -26,10 +26,17 @@ const EMOJI_BY_KEY = {
 async function sendToUserTokens(uid, tokens, payload) {
   if (!tokens || tokens.length === 0) return;
 
+  // Data-only message (no top-level `notification` field): if both are
+  // present, the browser auto-displays the `notification` payload from the
+  // push event AND our service worker's onBackgroundMessage handler shows
+  // its own notification, producing a duplicate for every push.
   const response = await messaging.sendEachForMulticast({
     tokens,
-    notification: { title: payload.title, body: payload.body },
-    data: payload.data || {},
+    data: {
+      title: payload.title,
+      body: payload.body,
+      ...(payload.data || {}),
+    },
   });
 
   const staleTokens = [];

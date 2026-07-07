@@ -37,13 +37,13 @@ firebase.initializeApp({
 const messaging = firebase.messaging();
 
 // Fired when a push arrives while the app is in the background or closed.
-// The Cloud Functions will send a `notification` payload (title + body),
-// and optionally a `data` payload we can use for click-through.
+// The Cloud Functions send a data-only payload (title + body live in
+// `data`, not `notification`) so this is the ONLY place a notification
+// gets shown. If the server ever adds a top-level `notification` field
+// back, the browser will auto-display it too and you'll get duplicates.
 messaging.onBackgroundMessage((payload) => {
-  const title = (payload.notification && payload.notification.title) || 'Daily 100';
-  const body =
-    (payload.notification && payload.notification.body) ||
-    "Time for today's 100.";
+  const title = (payload.data && payload.data.title) || 'Daily 100';
+  const body = (payload.data && payload.data.body) || "Time for today's 100.";
 
   self.registration.showNotification(title, {
     body,
