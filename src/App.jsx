@@ -9,7 +9,7 @@ import {
   updateProfile,
   sendPasswordResetEmail,
 } from 'firebase/auth';
-import { doc, getDoc, setDoc, collection, query, where, getDocs, updateDoc, arrayUnion, arrayRemove, deleteDoc, deleteField, onSnapshot } from 'firebase/firestore';
+import { doc, getDoc, setDoc, collection, query, where, getDocs, updateDoc, arrayUnion, arrayRemove, deleteDoc, deleteField, onSnapshot, runTransaction } from 'firebase/firestore';
 import { getMessaging, getToken, isSupported as messagingIsSupported } from 'firebase/messaging';
 
 // Web Push (VAPID) public key from Firebase console → Cloud Messaging → Web Push certificates
@@ -1182,71 +1182,80 @@ export default function DailyHundred() {
     if (squad.completedTodayDate === today && squad.completedToday?.includes(uid)) return;
     const ref = doc(db, 'squads', squad.id);
     try {
-      const snap = await getDoc(ref);
-      if (!snap.exists()) return;
-      const data = snap.data();
-      // Reset completedToday and memberExercises if it's from a previous day
-      const isNewDay = data.completedTodayDate !== today;
-      const currentCompleted = isNewDay ? [] : (data.completedToday || []);
-      if (!isNewDay && currentCompleted.includes(uid)) return;
-      const newCompleted = [...currentCompleted, uid];
-      const memberCount = data.memberUids.length;
-      const threshold = Math.ceil(memberCount * 0.5); // 50% rounded up
-      let newStreak = data.streak || 0;
-      let newBest = data.bestStreak || 0;
-      let newSaves = data.saves || 0;
-      let newLastDate = data.lastStreakDate;
+      // Runs as a transaction so two members finishing within the same
+      // instant can't read stale data and overwrite each other's completion.
+      const result = await runTransaction(db, async (transaction) => {
+        const snap = await transaction.get(ref);
+        if (!snap.exists()) return null;
+        const data = snap.data();
+        // Reset completedToday and memberExercises if it's from a previous day
+        const isNewDay = data.completedTodayDate !== today;
+        const currentCompleted = isNewDay ? [] : (data.completedToday || []);
+        if (!isNewDay && currentCompleted.includes(uid)) return null;
+        const newCompleted = [...currentCompleted, uid];
+        const memberCount = data.memberUids.length;
+        const threshold = Math.ceil(memberCount * 0.5); // 50% rounded up
+        let newStreak = data.streak || 0;
+        let newBest = data.bestStreak || 0;
+        let newSaves = data.saves || 0;
+        let newLastDate = data.lastStreakDate;
 
-      // Check if this completion tips us over 50% for today
-      if (newCompleted.length >= threshold && data.lastStreakDate !== today) {
-        // Did the streak survive from yesterday? Use local date, not UTC.
-        const yDate = new Date();
-        yDate.setDate(yDate.getDate() - 1);
-        const yStr = `${yDate.getFullYear()}-${String(yDate.getMonth() + 1).padStart(2, '0')}-${String(yDate.getDate()).padStart(2, '0')}`;
-        if (data.lastStreakDate === yStr || data.lastStreakDate === null) {
-          newStreak = (data.streak || 0) + 1;
-        } else {
-          // Gap — check saves
-          if (newSaves > 0) {
+        // Check if this completion tips us over 50% for today
+        if (newCompleted.length >= threshold && data.lastStreakDate !== today) {
+          // Did the streak survive from yesterday? Use local date, not UTC.
+          const yDate = new Date();
+          yDate.setDate(yDate.getDate() - 1);
+          const yStr = `${yDate.getFullYear()}-${String(yDate.getMonth() + 1).padStart(2, '0')}-${String(yDate.getDate()).padStart(2, '0')}`;
+          if (data.lastStreakDate === yStr || data.lastStreakDate === null) {
             newStreak = (data.streak || 0) + 1;
-            newSaves = newSaves - 1;
           } else {
-            newStreak = 1;
+            // Gap — check saves
+            if (newSaves > 0) {
+              newStreak = (data.streak || 0) + 1;
+              newSaves = newSaves - 1;
+            } else {
+              newStreak = 1;
+            }
+          }
+          newBest = Math.max(newStreak, newBest);
+          newLastDate = today;
+        }
+
+        // Track consecutive days where ALL members completed → earn a save every 7 in a row
+        let newAllCompleteStreak = data.allCompleteStreak || 0;
+        let newAllCompleteDate = data.allCompleteStreakDate || null;
+        if (newCompleted.length >= memberCount && data.allCompleteStreakDate !== today) {
+          const yDate = new Date();
+          yDate.setDate(yDate.getDate() - 1);
+          const yStr = `${yDate.getFullYear()}-${String(yDate.getMonth() + 1).padStart(2, '0')}-${String(yDate.getDate()).padStart(2, '0')}`;
+          newAllCompleteStreak = (data.allCompleteStreakDate === yStr) ? newAllCompleteStreak + 1 : 1;
+          newAllCompleteDate = today;
+          if (newAllCompleteStreak >= 7 && newSaves < 5) {
+            newSaves = newSaves + 1;
+            newAllCompleteStreak = 0;
           }
         }
-        newBest = Math.max(newStreak, newBest);
-        newLastDate = today;
-      }
 
-      // Track consecutive days where ALL members completed → earn a save every 7 in a row
-      let newAllCompleteStreak = data.allCompleteStreak || 0;
-      let newAllCompleteDate = data.allCompleteStreakDate || null;
-      if (newCompleted.length >= memberCount && data.allCompleteStreakDate !== today) {
-        const yDate = new Date();
-        yDate.setDate(yDate.getDate() - 1);
-        const yStr = `${yDate.getFullYear()}-${String(yDate.getMonth() + 1).padStart(2, '0')}-${String(yDate.getDate()).padStart(2, '0')}`;
-        newAllCompleteStreak = (data.allCompleteStreakDate === yStr) ? newAllCompleteStreak + 1 : 1;
-        newAllCompleteDate = today;
-        if (newAllCompleteStreak >= 7 && newSaves < 5) {
-          newSaves = newSaves + 1;
-          newAllCompleteStreak = 0;
-        }
-      }
+        const currentExercises = isNewDay ? {} : (data.memberExercises || {});
+        const newExercises = exerciseName ? { ...currentExercises, [uid]: exerciseName } : currentExercises;
 
-      const currentExercises = isNewDay ? {} : (data.memberExercises || {});
-      const newExercises = exerciseName ? { ...currentExercises, [uid]: exerciseName } : currentExercises;
-
-      await updateDoc(ref, {
-        completedToday: newCompleted,
-        completedTodayDate: today,
-        memberExercises: newExercises,
-        streak: newStreak,
-        bestStreak: newBest,
-        lastStreakDate: newLastDate,
-        saves: newSaves,
-        allCompleteStreak: newAllCompleteStreak,
-        allCompleteStreakDate: newAllCompleteDate,
+        const update = {
+          completedToday: newCompleted,
+          completedTodayDate: today,
+          memberExercises: newExercises,
+          streak: newStreak,
+          bestStreak: newBest,
+          lastStreakDate: newLastDate,
+          saves: newSaves,
+          allCompleteStreak: newAllCompleteStreak,
+          allCompleteStreakDate: newAllCompleteDate,
+        };
+        transaction.update(ref, update);
+        return update;
       });
+
+      if (!result) return;
+      const { completedToday: newCompleted, memberExercises: newExercises, streak: newStreak, bestStreak: newBest, lastStreakDate: newLastDate, saves: newSaves, allCompleteStreak: newAllCompleteStreak, allCompleteStreakDate: newAllCompleteDate } = result;
 
       // Update local state
       setSquads((prev) => prev.map((s) =>
